@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Hải Âu Lab Manager',
+      title: 'Hải Âu',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: const LoginScreen(),
     );

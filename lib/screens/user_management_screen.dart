@@ -9,11 +9,18 @@ class UserManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Quản lý nhân viên'),
         backgroundColor: Colors.blue,
+        centerTitle: true, // canh giữa tiêu đề
+        title: const Text(
+          'Quản lý nhân viên',
+          style: TextStyle(color: Colors.white),
+        ),
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ), // đổi màu icon back
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add, color: Colors.white),
             onPressed: () {
               showDialog(
                 context: context,
@@ -42,13 +49,20 @@ class UserManagementScreen extends StatelessWidget {
               final data = user.data() as Map<String, dynamic>;
 
               return Card(
+                elevation: 2,
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Colors.blueAccent,
-                    child: Icon(Icons.person, color: Colors.white),
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.blue.shade600,
+                    child: const Icon(Icons.person, color: Colors.white),
                   ),
-                  title: Text(data['name'] ?? 'Không có tên'),
+                  title: Text(
+                    data['name'] ?? 'Không có tên',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: Text(data['position'] ?? 'Không có chức vụ'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
@@ -104,10 +118,27 @@ class _AddUserDialogState extends State<AddUserDialog> {
     }
   }
 
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Colors.grey.shade100,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Thêm nhân viên mới'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        'Thêm nhân viên mới',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -116,25 +147,29 @@ class _AddUserDialogState extends State<AddUserDialog> {
             children: [
               TextFormField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: 'Họ tên'),
+                decoration: _inputDecoration('Họ tên'),
                 validator: (value) => value!.isEmpty ? 'Nhập tên' : null,
               ),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
+                decoration: _inputDecoration('Email'),
                 validator: (value) => value!.isEmpty ? 'Nhập email' : null,
               ),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: phoneController,
-                decoration: const InputDecoration(labelText: 'Số điện thoại'),
+                decoration: _inputDecoration('Số điện thoại'),
               ),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: positionController,
-                decoration: const InputDecoration(labelText: 'Chức vụ'),
+                decoration: _inputDecoration('Chức vụ'),
               ),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: roleController,
-                decoration: const InputDecoration(labelText: 'Vai trò'),
+                decoration: _inputDecoration('Vai trò'),
               ),
             ],
           ),
@@ -145,7 +180,17 @@ class _AddUserDialogState extends State<AddUserDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Hủy'),
         ),
-        ElevatedButton(onPressed: addUser, child: const Text('Thêm')),
+        ElevatedButton(
+          onPressed: addUser,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: const Text('Thêm'),
+        ),
       ],
     );
   }

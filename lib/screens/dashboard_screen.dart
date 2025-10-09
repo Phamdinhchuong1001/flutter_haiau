@@ -19,20 +19,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.lightBlue.shade700,
-        title: const Text('Hải Âu', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Hải Âu Manager',
+          style: TextStyle(color: Colors.white),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () async {
-              await _auth.signOut();
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-          ),
-        ],
       ),
 
       drawer: Drawer(
@@ -41,13 +32,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             DrawerHeader(
               decoration: BoxDecoration(color: Colors.lightBlue.shade700),
-              child: const Center(
-                child: Text(
-                  'Hải Âu Lab Manager',
-                  style: TextStyle(color: Colors.white, fontSize: 20),
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Hải Âu Manager',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12), // Khoảng cách giữa chữ và logo
+                  SizedBox(
+                    height: 60,
+                    child: Image.asset(
+                      'assets/logokonen.png', // đường dẫn logo của bạn
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ],
               ),
             ),
+
             ListTile(
               leading: const Icon(Icons.dashboard),
               title: const Text('Bảng điều khiển'),
@@ -80,6 +87,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
               title: const Text('Báo cáo'),
               onTap: () {},
             ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text(
+                'Đăng xuất',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () async {
+                await _auth.signOut();
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                }
+              },
+            ),
           ],
         ),
       ),
@@ -90,7 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             _buildInfoCard(
               icon: Icons.science,
-              title: 'Tổng Mẫu',
+              title: 'Tổng Mẫu Thử',
               value: '0',
               color: Colors.blue.shade800,
             ),

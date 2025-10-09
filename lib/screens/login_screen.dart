@@ -46,10 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 children: [
                   SizedBox(height: constraints.maxHeight * 0.1),
-                  Image.network(
-                    "https://i.postimg.cc/nz0YBQcH/Logo-light.png",
-                    height: 100,
-                  ),
+                  Image.asset('assets/logo1.jpg', height: 100),
                   SizedBox(height: constraints.maxHeight * 0.1),
                   Text(
                     "Đăng nhập",
