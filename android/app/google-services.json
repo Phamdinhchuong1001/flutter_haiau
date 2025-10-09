@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "499059433013",
+    "project_id": "haiau-lab-manager",
+    "storage_bucket": "haiau-lab-manager.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:499059433013:android:9b4187628026e76fea9b7c",
+        "android_client_info": {
+          "package_name": "com.example.flutter_haiau"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8zqeAPtcPr6y2WRVJ5s9ChuTbWRbR8Qo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

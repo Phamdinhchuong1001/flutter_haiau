@@ -1,0 +1,36 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "haiau-lab-manager",
+          "appId": "1:499059433013:android:9b4187628026e76fea9b7c",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "haiau-lab-manager",
+          "configurations": {
+            "android": "1:499059433013:android:9b4187628026e76fea9b7c",
+            "web": "1:499059433013:web:4e43319d0a159132ea9b7c"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
