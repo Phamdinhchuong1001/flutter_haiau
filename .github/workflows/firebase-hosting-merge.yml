@@ -6,13 +6,27 @@ on:
   push:
     branches:
       - main
+
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      - run: flutter build web
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+
+      # 🟢 Thêm bước cài Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0' # hoặc version bạn dùng local
+
+      # 🟢 Build web
+      - name: Build Flutter Web
+        run: flutter build web
+
+      # 🟢 Deploy lên Firebase
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HAIAU_LAB_MANAGER }}
