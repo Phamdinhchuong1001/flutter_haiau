@@ -3,6 +3,7 @@ import 'package:flutter_haiau/services/auth_service.dart';
 import 'package:flutter_haiau/screens/user_management_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
+import 'package:flutter_haiau/screens/device_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -68,7 +69,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('Quản lý thiết bị'),
-              onTap: () {},
+              onTap: () {
+                 Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DeviceScreen(),
+                  ),
+                );
+              },
             ),
             ListTile(
               leading: const Icon(Icons.people),
