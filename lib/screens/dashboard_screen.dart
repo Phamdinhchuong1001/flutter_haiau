@@ -200,7 +200,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   context,
                   icon: Icons.fact_check,
                   label: 'Thiết bị',
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DeviceScreen(),
+                      ),
+                    );
+                  },
                 ),
                 _buildQuickButton(
                   context,
