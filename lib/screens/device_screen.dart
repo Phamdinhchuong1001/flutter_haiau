@@ -264,12 +264,12 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
   Future<void> addDevice() async {
     if (_formKey.currentState!.validate()) {
       await FirebaseFirestore.instance.collection('devices').add({
-        'name': nameController.text,
-        'model': modelController.text,
-        'manufacturer': manufacturerController.text,
+        'name': nameController.text.trim(),
+        'model': modelController.text.trim(),
+        'manufacturer': manufacturerController.text.trim(),
         'status': selectedStatus ?? 'Không rõ',
-        'calibrationCycle': calibrationCycleController.text,
-        'purchaseDate': purchaseDateController.text,
+        'calibrationCycle': calibrationCycleController.text.trim(),
+        'purchaseDate': purchaseDateController.text.trim(),
         'createdAt': Timestamp.now(),
       });
 
@@ -309,22 +309,34 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 🔹 Tên thiết bị
               TextFormField(
                 controller: nameController,
                 decoration: _inputDecoration('Tên thiết bị'),
-                validator: (value) => value!.isEmpty ? 'Nhập tên thiết bị' : null,
+                validator: (value) =>
+                    value == null || value.trim().isEmpty ? 'Nhập tên thiết bị' : null,
               ),
               const SizedBox(height: 12),
+
+              // 🔹 Model / Serial
               TextFormField(
                 controller: modelController,
                 decoration: _inputDecoration('Model / Số serial'),
+                validator: (value) =>
+                    value == null || value.trim().isEmpty ? 'Nhập model hoặc số serial' : null,
               ),
               const SizedBox(height: 12),
+
+              // 🔹 Hãng sản xuất
               TextFormField(
                 controller: manufacturerController,
                 decoration: _inputDecoration('Hãng sản xuất'),
+                validator: (value) =>
+                    value == null || value.trim().isEmpty ? 'Nhập hãng sản xuất' : null,
               ),
               const SizedBox(height: 12),
+
+              // 🔹 Tình trạng
               DropdownButtonFormField<String>(
                 decoration: _inputDecoration('Tình trạng'),
                 value: selectedStatus,
@@ -338,14 +350,51 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
                 validator: (value) => value == null ? 'Vui lòng chọn tình trạng' : null,
               ),
               const SizedBox(height: 12),
+
+              // 🔹 Chu kỳ hiệu chuẩn
               TextFormField(
                 controller: calibrationCycleController,
-                decoration: _inputDecoration('Chu kỳ hiệu chuẩn'),
+                decoration: _inputDecoration('Chu kỳ hiệu chuẩn (tháng)'),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Nhập chu kỳ hiệu chuẩn';
+                  }
+                  final num? months = num.tryParse(value);
+                  if (months == null || months <= 0) {
+                    return 'Chu kỳ phải là số > 0';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 12),
+
+              // 🔹 Ngày mua
               TextFormField(
                 controller: purchaseDateController,
-                decoration: _inputDecoration('Ngày mua'),
+                readOnly: true,
+                decoration: _inputDecoration('Ngày mua').copyWith(
+                  suffixIcon: const Icon(
+                    Icons.calendar_today,
+                    size: 18,
+                    color: Colors.black54,
+                  ),
+                ),
+                validator: (value) =>
+                    value == null || value.trim().isEmpty ? 'Chọn ngày mua' : null,
+                onTap: () async {
+                  FocusScope.of(context).requestFocus(FocusNode());
+                  DateTime? pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (pickedDate != null) {
+                    purchaseDateController.text =
+                        "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
+                  }
+                },
               ),
             ],
           ),

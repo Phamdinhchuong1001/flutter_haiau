@@ -127,12 +127,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: Colors.blue.shade800,
             ),
             const SizedBox(height: 12),
-            _buildInfoCard(
-              icon: Icons.settings,
-              title: 'Tổng Thiết Bị',
-              value: '0',
-              color: Colors.blue.shade600,
-            ),
+           StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('devices').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return _buildInfoCard(
+                  icon: Icons.settings,
+                  title: 'Tổng Thiết Bị',
+                  value: '...',
+                  color: Colors.blue.shade600,
+                );
+              }
+
+              if (snapshot.hasError) {
+                return _buildInfoCard(
+                  icon: Icons.settings,
+                  title: 'Tổng Thiết Bị',
+                  value: 'Lỗi',
+                  color: Colors.red.shade600,
+                );
+              }
+
+              final totalDevices = snapshot.data?.docs.length ?? 0;
+              return _buildInfoCard(
+                icon: Icons.settings,
+                title: 'Tổng Thiết Bị',
+                value: '$totalDevices',
+                color: Colors.blue.shade600,
+              );
+            },
+          ),
             const SizedBox(height: 12),
 
             // 🔥 Realtime tổng nhân viên
