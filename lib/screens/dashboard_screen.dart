@@ -4,6 +4,7 @@ import 'package:flutter_haiau/screens/user_management_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'package:flutter_haiau/screens/device_screen.dart';
+import 'package:flutter_haiau/screens/sample_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -64,17 +65,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ListTile(
               leading: const Icon(Icons.science),
               title: const Text('Quản lý mẫu'),
-              onTap: () {},
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SampleScreen()),
+                );
+              },
             ),
             ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('Quản lý thiết bị'),
               onTap: () {
-                 Navigator.push(
+                Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const DeviceScreen(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const DeviceScreen()),
                 );
               },
             ),
@@ -120,43 +125,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildInfoCard(
-              icon: Icons.science,
-              title: 'Tổng Mẫu Thử',
-              value: '0',
-              color: Colors.blue.shade800,
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('samples')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return _buildInfoCard(
+                    icon: Icons.science,
+                    title: 'Tổng Mẫu Thử',
+                    value: '...',
+                    color: Colors.blue.shade800,
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return _buildInfoCard(
+                    icon: Icons.science,
+                    title: 'Tổng Mẫu Thử',
+                    value: 'Lỗi',
+                    color: Colors.red.shade800,
+                  );
+                }
+
+                final totalSamples = snapshot.data?.docs.length ?? 0;
+                return _buildInfoCard(
+                  icon: Icons.science,
+                  title: 'Tổng Mẫu Thử',
+                  value: '$totalSamples',
+                  color: Colors.blue.shade800,
+                );
+              },
             ),
             const SizedBox(height: 12),
-           StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('devices').snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('devices')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return _buildInfoCard(
+                    icon: Icons.settings,
+                    title: 'Tổng Thiết Bị',
+                    value: '...',
+                    color: Colors.blue.shade600,
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return _buildInfoCard(
+                    icon: Icons.settings,
+                    title: 'Tổng Thiết Bị',
+                    value: 'Lỗi',
+                    color: Colors.red.shade600,
+                  );
+                }
+
+                final totalDevices = snapshot.data?.docs.length ?? 0;
                 return _buildInfoCard(
                   icon: Icons.settings,
                   title: 'Tổng Thiết Bị',
-                  value: '...',
+                  value: '$totalDevices',
                   color: Colors.blue.shade600,
                 );
-              }
-
-              if (snapshot.hasError) {
-                return _buildInfoCard(
-                  icon: Icons.settings,
-                  title: 'Tổng Thiết Bị',
-                  value: 'Lỗi',
-                  color: Colors.red.shade600,
-                );
-              }
-
-              final totalDevices = snapshot.data?.docs.length ?? 0;
-              return _buildInfoCard(
-                icon: Icons.settings,
-                title: 'Tổng Thiết Bị',
-                value: '$totalDevices',
-                color: Colors.blue.shade600,
-              );
-            },
-          ),
+              },
+            ),
             const SizedBox(height: 12),
 
             // 🔥 Realtime tổng nhân viên
@@ -218,7 +251,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   context,
                   icon: Icons.add,
                   label: 'Thêm mẫu',
-                  onTap: () {},
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AddSampleDialog(),
+                    );
+                  },
+                ),
+                _buildQuickButton(
+                  context,
+                  icon: Icons.science,
+                  label: 'Quản lý mẫu',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => SampleScreen()),
+                    );
+                  },
+                ),
+                _buildQuickButton(
+                  context,
+                  icon: Icons.fact_check,
+                  label: 'Thiết bị',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DeviceScreen(),
+                      ),
+                    );
+                  },
                 ),
                 _buildQuickButton(
                   context,
