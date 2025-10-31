@@ -29,7 +29,7 @@ class _SampleScreenState extends State<SampleScreen> {
       case SampleStatus.completed:
         return Colors.green.shade700;
       case SampleStatus.resultReturned:
-        return Colors.blue.shade700;
+        return const Color(0xFF005BFF);
       default:
         return Colors.grey.shade700;
     }
@@ -89,7 +89,7 @@ class _SampleScreenState extends State<SampleScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.blue,
+        backgroundColor: const Color(0xFF005BFF),
         centerTitle: true,
         title: const Text('Quản lý Mẫu', style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),

@@ -26,7 +26,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
   late String selectedStatus;
 
-  final Color primaryColor = const Color(0xFF2196F3);
+  final Color primaryColor = const Color(0xFF005BFF);
 
   final List<String> statusOptions = [
     'Đang hoạt động',
@@ -40,12 +40,15 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     super.initState();
     nameController = TextEditingController(text: widget.deviceData['name']);
     modelController = TextEditingController(text: widget.deviceData['model']);
-    manufacturerController =
-        TextEditingController(text: widget.deviceData['manufacturer']);
-    purchaseDateController =
-        TextEditingController(text: widget.deviceData['purchaseDate']);
-    calibrationCycleController =
-        TextEditingController(text: widget.deviceData['calibrationCycle']);
+    manufacturerController = TextEditingController(
+      text: widget.deviceData['manufacturer'],
+    );
+    purchaseDateController = TextEditingController(
+      text: widget.deviceData['purchaseDate'],
+    );
+    calibrationCycleController = TextEditingController(
+      text: widget.deviceData['calibrationCycle'],
+    );
     selectedStatus = statusOptions.contains(widget.deviceData['status'])
         ? widget.deviceData['status']
         : 'Đang hoạt động';
@@ -56,7 +59,8 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         modelController.text != widget.deviceData['model'] ||
         manufacturerController.text != widget.deviceData['manufacturer'] ||
         purchaseDateController.text != widget.deviceData['purchaseDate'] ||
-        calibrationCycleController.text != widget.deviceData['calibrationCycle'] ||
+        calibrationCycleController.text !=
+            widget.deviceData['calibrationCycle'] ||
         selectedStatus != widget.deviceData['status'];
   }
 
@@ -65,7 +69,9 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
     if (!_hasChanged()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng thay đổi thông tin trước khi cập nhật!')),
+        const SnackBar(
+          content: Text('Vui lòng thay đổi thông tin trước khi cập nhật!'),
+        ),
       );
       return;
     }
@@ -74,13 +80,13 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         .collection('devices')
         .doc(widget.deviceId)
         .update({
-      'name': nameController.text.trim(),
-      'model': modelController.text.trim(),
-      'manufacturer': manufacturerController.text.trim(),
-      'purchaseDate': purchaseDateController.text.trim(),
-      'calibrationCycle': calibrationCycleController.text.trim(),
-      'status': selectedStatus,
-    });
+          'name': nameController.text.trim(),
+          'model': modelController.text.trim(),
+          'manufacturer': manufacturerController.text.trim(),
+          'purchaseDate': purchaseDateController.text.trim(),
+          'calibrationCycle': calibrationCycleController.text.trim(),
+          'status': selectedStatus,
+        });
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -104,7 +110,10 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Xác nhận", style: TextStyle(color: Colors.white)),
+            child: const Text(
+              "Xác nhận",
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -116,9 +125,9 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
           .doc(widget.deviceId)
           .delete();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã xóa thiết bị!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã xóa thiết bị!')));
         Navigator.pop(context);
       }
     }
@@ -182,29 +191,36 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
               Text(
                 nameController.text,
                 style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 22,
-                    ),
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                ),
               ),
               const Divider(height: 32),
 
               // 🔹 Tên thiết bị
               TextFormField(
                 controller: nameController,
-                decoration: _inputDecoration("Tên thiết bị", Icons.devices_other),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'Nhập tên thiết bị' : null,
+                decoration: _inputDecoration(
+                  "Tên thiết bị",
+                  Icons.devices_other,
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Nhập tên thiết bị'
+                    : null,
               ),
               const SizedBox(height: 12),
 
               // 🔹 Model
               TextFormField(
                 controller: modelController,
-                decoration:
-                    _inputDecoration("Model / Số serial", Icons.confirmation_number),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'Nhập model hoặc số serial' : null,
+                decoration: _inputDecoration(
+                  "Model / Số serial",
+                  Icons.confirmation_number,
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Nhập model hoặc số serial'
+                    : null,
               ),
               const SizedBox(height: 12),
 
@@ -212,8 +228,9 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
               TextFormField(
                 controller: manufacturerController,
                 decoration: _inputDecoration("Hãng sản xuất", Icons.factory),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'Nhập hãng sản xuất' : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Nhập hãng sản xuất'
+                    : null,
               ),
               const SizedBox(height: 12),
 
@@ -222,8 +239,9 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                 controller: purchaseDateController,
                 readOnly: true,
                 decoration: _inputDecoration("Ngày mua", Icons.calendar_today),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'Chọn ngày mua' : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Chọn ngày mua'
+                    : null,
                 onTap: _selectPurchaseDate,
               ),
               const SizedBox(height: 12),
@@ -232,7 +250,10 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
               TextFormField(
                 controller: calibrationCycleController,
                 keyboardType: TextInputType.number,
-                decoration: _inputDecoration("Chu kỳ hiệu chuẩn (tháng)", Icons.access_time),
+                decoration: _inputDecoration(
+                  "Chu kỳ hiệu chuẩn (tháng)",
+                  Icons.access_time,
+                ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Nhập chu kỳ hiệu chuẩn';
@@ -275,8 +296,10 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                         minimumSize: const Size(double.infinity, 48),
                       ),
                       icon: const Icon(Icons.save),
-                      label: const Text("Cập nhật",
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      label: const Text(
+                        "Cập nhật",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       onPressed: updateDevice,
                     ),
                   ),
@@ -290,8 +313,10 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                         minimumSize: const Size(double.infinity, 48),
                       ),
                       icon: const Icon(Icons.delete),
-                      label: const Text("Xóa",
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      label: const Text(
+                        "Xóa",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       onPressed: confirmDeleteDevice,
                     ),
                   ),
@@ -317,7 +342,9 @@ class _DeviceIcon extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: Theme.of(context).textTheme.bodyLarge!.color!.withOpacity(0.08),
+          color: Theme.of(
+            context,
+          ).textTheme.bodyLarge!.color!.withOpacity(0.08),
         ),
       ),
       child: const CircleAvatar(

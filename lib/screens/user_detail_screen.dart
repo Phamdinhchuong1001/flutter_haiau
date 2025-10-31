@@ -22,7 +22,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   late TextEditingController positionController;
   late TextEditingController roleController;
 
-  final Color primaryColor = const Color(0xFF2196F3);
+  final Color primaryColor = const Color(0xFF005BFF);
 
   @override
   void initState() {

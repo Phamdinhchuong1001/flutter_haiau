@@ -26,7 +26,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.blue,
+        backgroundColor: const Color(0xFF005BFF),
         centerTitle: true,
         title: const Text(
           'Quản lý thiết bị',
@@ -35,7 +35,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
+            icon: const Icon(Icons.add_box, color: Colors.white),
             onPressed: () {
               showDialog(
                 context: context,
@@ -61,22 +61,31 @@ class _DeviceScreenState extends State<DeviceScreen> {
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100, // nhẹ hơn 1 tông
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300), // viền nhạt
+                    border: Border.all(
+                      color: Colors.grey.shade300,
+                    ), // viền nhạt
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: filterField,
                       isExpanded: true,
                       icon: const Icon(Icons.arrow_drop_down, size: 20),
-                      style: const TextStyle(fontSize: 14, color: Colors.black87),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
                       items: filterOptions
-                          .map((option) => DropdownMenuItem(
-                                value: option,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  child: Text(option),
+                          .map(
+                            (option) => DropdownMenuItem(
+                              value: option,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
                                 ),
-                              ))
+                                child: Text(option),
+                              ),
+                            ),
+                          )
                           .toList(),
                       onChanged: (value) {
                         setState(() {
@@ -90,7 +99,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
                 ),
 
                 const SizedBox(width: 8), // khoảng cách giữa 2 ô
-
                 // 🔍 Ô tìm kiếm
                 Expanded(
                   child: SizedBox(
@@ -98,16 +106,22 @@ class _DeviceScreenState extends State<DeviceScreen> {
                     child: TextField(
                       decoration: InputDecoration(
                         hintText: 'Nhập từ khóa...',
-                        hintStyle:
-                            TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                        hintStyle: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                        ),
                         prefixIcon: const Icon(Icons.search, size: 20),
                         filled: true,
                         fillColor: Colors.grey.shade100, // đồng bộ màu nền
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 0,
+                          horizontal: 10,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade300), // viền nhạt
+                          borderSide: BorderSide(
+                            color: Colors.grey.shade300,
+                          ), // viền nhạt
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -115,7 +129,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey.shade400), // nhấn nhẹ khi focus
+                          borderSide: BorderSide(
+                            color: Colors.grey.shade400,
+                          ), // nhấn nhẹ khi focus
                         ),
                       ),
                       onChanged: (value) {
@@ -129,8 +145,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
               ],
             ),
           ),
-
-
 
           // --- Danh sách thiết bị ---
           Expanded(
@@ -152,12 +166,15 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
                   final name = (data['name'] ?? '').toString().toLowerCase();
                   final model = (data['model'] ?? '').toString().toLowerCase();
-                  final manufacturer =
-                      (data['manufacturer'] ?? '').toString().toLowerCase();
-                  final status =
-                      (data['status'] ?? '').toString().toLowerCase();
-                  final calibrationCycle =
-                      (data['calibrationCycle'] ?? '').toString().toLowerCase();
+                  final manufacturer = (data['manufacturer'] ?? '')
+                      .toString()
+                      .toLowerCase();
+                  final status = (data['status'] ?? '')
+                      .toString()
+                      .toLowerCase();
+                  final calibrationCycle = (data['calibrationCycle'] ?? '')
+                      .toString()
+                      .toLowerCase();
 
                   if (searchQuery.isEmpty) return true;
 
@@ -182,7 +199,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
                 }).toList();
 
                 if (devices.isEmpty) {
-                  return const Center(child: Text('Không tìm thấy thiết bị nào.'));
+                  return const Center(
+                    child: Text('Không tìm thấy thiết bị nào.'),
+                  );
                 }
 
                 return ListView.builder(
@@ -194,7 +213,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
                     return Card(
                       elevation: 1.5,
                       margin: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -205,13 +226,10 @@ class _DeviceScreenState extends State<DeviceScreen> {
                         ),
                         title: Text(
                           data['name'] ?? 'Không có tên thiết bị',
-                          style:
-                              const TextStyle(fontWeight: FontWeight.w600),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        subtitle:
-                            Text(data['status'] ?? 'Không rõ tình trạng'),
-                        trailing:
-                            const Icon(Icons.arrow_forward_ios, size: 16),
+                        subtitle: Text(data['status'] ?? 'Không rõ tình trạng'),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -235,7 +253,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
     );
   }
 }
-
 
 // ====================== DIALOG THÊM THIẾT BỊ ======================
 class AddDeviceDialog extends StatefulWidget {
@@ -313,8 +330,9 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
               TextFormField(
                 controller: nameController,
                 decoration: _inputDecoration('Tên thiết bị'),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'Nhập tên thiết bị' : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Nhập tên thiết bị'
+                    : null,
               ),
               const SizedBox(height: 12),
 
@@ -322,8 +340,9 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
               TextFormField(
                 controller: modelController,
                 decoration: _inputDecoration('Model / Số serial'),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'Nhập model hoặc số serial' : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Nhập model hoặc số serial'
+                    : null,
               ),
               const SizedBox(height: 12),
 
@@ -331,8 +350,9 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
               TextFormField(
                 controller: manufacturerController,
                 decoration: _inputDecoration('Hãng sản xuất'),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'Nhập hãng sản xuất' : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Nhập hãng sản xuất'
+                    : null,
               ),
               const SizedBox(height: 12),
 
@@ -341,13 +361,14 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
                 decoration: _inputDecoration('Tình trạng'),
                 value: selectedStatus,
                 items: statusOptions
-                    .map((status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status),
-                        ))
+                    .map(
+                      (status) =>
+                          DropdownMenuItem(value: status, child: Text(status)),
+                    )
                     .toList(),
                 onChanged: (value) => setState(() => selectedStatus = value),
-                validator: (value) => value == null ? 'Vui lòng chọn tình trạng' : null,
+                validator: (value) =>
+                    value == null ? 'Vui lòng chọn tình trạng' : null,
               ),
               const SizedBox(height: 12),
 
@@ -380,8 +401,9 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
                     color: Colors.black54,
                   ),
                 ),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'Chọn ngày mua' : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Chọn ngày mua'
+                    : null,
                 onTap: () async {
                   FocusScope.of(context).requestFocus(FocusNode());
                   DateTime? pickedDate = await showDatePicker(
@@ -410,7 +432,9 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blue,
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
           child: const Text('Thêm'),
         ),

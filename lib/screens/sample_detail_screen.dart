@@ -14,7 +14,7 @@ class SampleDetailScreen extends StatefulWidget {
 class _SampleDetailScreenState extends State<SampleDetailScreen> {
   late SampleModel _currentSample;
   late SampleStatus _selectedStatus;
-  final Color primaryColor = const Color(0xFF2196F3);
+  final Color primaryColor = const Color(0xFF005BFF);
 
   final List<SampleStatus> statusOptions = SampleStatus.values;
 

@@ -63,12 +63,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildSidebar({bool isDrawer = false}) {
     return Container(
       width: 250,
-      color: Colors.lightBlue.shade700,
+      color: Color(0xFF005BFF),
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(color: Colors.lightBlue.shade700),
+            decoration: BoxDecoration(color: Color(0xFF005BFF)),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -121,7 +121,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text(
               'Đăng xuất',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Color.fromARGB(255, 255, 17, 0),
+                fontWeight: FontWeight.bold,
+              ),
             ),
             onTap: () async {
               await _auth.signOut();

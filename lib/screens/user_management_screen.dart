@@ -16,7 +16,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.blue,
+        backgroundColor: const Color(0xFF005BFF),
         centerTitle: true,
         title: const Text(
           'Quản lý nhân viên',
@@ -25,7 +25,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
+            icon: const Icon(Icons.add_box, color: Colors.white),
             onPressed: () {
               showDialog(
                 context: context,
