@@ -26,8 +26,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
   ];
 
   void _onSelectPage(int index, {bool closeDrawer = false}) {
-    setState(() => _selectedIndex = index);
+    final isWide = MediaQuery.of(context).size.width > 800;
+
     if (closeDrawer) Navigator.pop(context);
+
+    if (isWide) {
+      // Web: chỉ đổi nội dung
+      setState(() => _selectedIndex = index);
+    } else {
+      // Mobile: mở trang riêng với AppBar riêng
+      Widget? page;
+      switch (index) {
+        case 0:
+          page = const DashboardScreen();
+          break;
+        case 1:
+          page = const SampleScreen();
+          break;
+        case 2:
+          page = const DeviceScreen();
+          break;
+        case 3:
+          page = const UserManagementScreen();
+          break;
+        case 4:
+          page = Center(child: Text('Trang Báo Cáo'));
+          break;
+        default:
+          page = null;
+      }
+      if (page != null) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => page!));
+      }
+    }
   }
 
   @override
@@ -39,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: isWide
           ? null
           : AppBar(
-              backgroundColor: Colors.lightBlue.shade700,
+              backgroundColor: const Color(0xFF005BFF),
               title: const Text(
                 'Hải Âu Manager',
                 style: TextStyle(color: Colors.white),
@@ -63,12 +94,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildSidebar({bool isDrawer = false}) {
     return Container(
       width: 250,
-      color: Color(0xFF005BFF),
+      color: const Color(0xFF005BFF),
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(color: Color(0xFF005BFF)),
+            decoration: const BoxDecoration(color: Color(0xFF005BFF)),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -194,11 +225,55 @@ class DashboardContent extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: [
-              _QuickButton(icon: Icons.add, label: 'Thêm mẫu'),
-              _QuickButton(icon: Icons.science, label: 'Quản lý mẫu'),
-              _QuickButton(icon: Icons.fact_check, label: 'Thiết bị'),
-              _QuickButton(icon: Icons.group, label: 'Nhân viên'),
-              _QuickButton(icon: Icons.assignment, label: 'Báo cáo'),
+              _QuickButton(
+                icon: Icons.add,
+                label: 'Thêm mẫu',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SampleScreen()),
+                  );
+                },
+              ),
+              _QuickButton(
+                icon: Icons.science,
+                label: 'Quản lý mẫu',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SampleScreen()),
+                  );
+                },
+              ),
+              _QuickButton(
+                icon: Icons.fact_check,
+                label: 'Thiết bị',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DeviceScreen()),
+                  );
+                },
+              ),
+              _QuickButton(
+                icon: Icons.group,
+                label: 'Nhân viên',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UserManagementScreen(),
+                    ),
+                  );
+                },
+              ),
+              _QuickButton(
+                icon: Icons.assignment,
+                label: 'Báo cáo',
+                onTap: () {
+                  // TODO: thêm màn hình báo cáo khi có
+                },
+              ),
             ],
           ),
         ],
@@ -359,13 +434,19 @@ class _InfoCard extends StatelessWidget {
 class _QuickButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  const _QuickButton({required this.icon, required this.label});
+  final VoidCallback onTap;
+
+  const _QuickButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: () {},
+      onTap: onTap,
       child: Container(
         width: 160,
         padding: const EdgeInsets.symmetric(vertical: 20),
