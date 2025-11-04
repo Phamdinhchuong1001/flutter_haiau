@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_haiau/models/sample_model.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+
+final FirebaseFunctions functions = FirebaseFunctions.instance;
 
 class SampleDetailScreen extends StatefulWidget {
   final SampleModel sample;
@@ -38,11 +41,15 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
     }
 
     try {
-      await FirebaseFirestore.instance
-          .collection('samples')
-          .doc(_currentSample.id)
-          .update({'status': statusToString(_selectedStatus)});
+      final data = {
+        'id': _currentSample.id,
+        'status': statusToString(_selectedStatus),
+      };
 
+      final HttpsCallable callable = functions.httpsCallable(
+        'updateSampleStatus',
+      );
+      await callable.call(data);
       setState(() {
         _currentSample = _currentSample.copyWith(status: _selectedStatus);
       });
@@ -53,14 +60,18 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
             content: Text(
               'Cập nhật trạng thái thành công: ${statusToString(_selectedStatus)}!',
             ),
+            backgroundColor: Colors.green,
           ),
         );
       }
-    } catch (e) {
+    } on FirebaseFunctionsException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi cập nhật: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi cập nhật: ${e.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -91,15 +102,32 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
     );
 
     if (confirm == true) {
-      await FirebaseFirestore.instance
-          .collection('samples')
-          .doc(_currentSample.id)
-          .delete();
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Đã xóa mẫu!')));
-        Navigator.pop(context);
+      try {
+        final data = {'id': _currentSample.id};
+
+        final HttpsCallable callable = functions.httpsCallable('deleteSample');
+        await callable.call(data);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đã xóa mẫu!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } on FirebaseFunctionsException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Lỗi xóa mẫu: ${e.message ?? 'Lỗi không xác định'}',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
