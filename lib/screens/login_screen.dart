@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_haiau/services/auth_service.dart';
+import 'package:flutter_haiau/screens/dashboard_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_screen.dart';
-import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,21 +17,57 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
   final AuthService _authService = AuthService();
 
-  void _login() async {
-    final user = await _authService.signIn(
-      emailController.text.trim(),
-      passwordController.text.trim(),
-    );
+  bool _isLoading = false;
+  Future<void> _debugTokens(User user) async {
+    final idToken = await user.getIdToken();
 
-    if (user != null && mounted) {
+    print('DEBUG: FIREBASE AUTH TOKENS');
+    print('ID Token (Access Token): $idToken');
+    print('ID Token Payload (Phân tích Token để xem thông tin):');
+
+    if (mounted) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const DashboardScreen()),
       );
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Đăng nhập thất bại')));
+    }
+  }
+
+  Future<void> _signIn() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _authService.signIn(
+        emailController.text.trim(),
+        passwordController.text.trim(),
+      );
+
+      final user = FirebaseAuth.instance.currentUser;
+
+      // if (user != null && mounted) {
+      //   Navigator.pushReplacement(
+      //     context,
+      //     MaterialPageRoute(builder: (context) => const DashboardScreen()),
+      //   );
+
+      if (user != null && mounted) {
+        await _debugTokens(user);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đăng nhập thất bại: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -148,7 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: ElevatedButton(
                                     onPressed: () {
                                       if (_formKey.currentState!.validate()) {
-                                        _login();
+                                        _signIn();
                                       }
                                     },
                                     style: ElevatedButton.styleFrom(
