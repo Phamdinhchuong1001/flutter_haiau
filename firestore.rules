@@ -1,0 +1,24 @@
+// Firestore Security Rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ✅ USERS collection
+    match /users/{userId} {
+      // Staff + Admin đều đọc được
+      allow read: if request.auth != null;
+
+      // Chỉ admin mới update/xóa
+      allow write: if request.auth.token.role == "admin";
+    }
+
+    // ✅ SAMPLES collection
+    match /samples/{sampleId} {
+      // Tất cả người đã đăng nhập đều xem được
+      allow read: if request.auth != null;
+
+      // Chỉ admin và staff mới tạo/sửa/xóa
+      allow write: if request.auth.token.role == "admin" || request.auth.token.role == "staff";
+    }
+  }
+}

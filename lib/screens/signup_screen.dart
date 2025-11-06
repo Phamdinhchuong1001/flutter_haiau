@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_haiau/services/auth_service.dart';
+import 'package:flutter_haiau/services/user_service.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -11,13 +11,22 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
+
+  // Controllers (thêm fullname, birthDate, position)
+  final TextEditingController fullnameController = TextEditingController();
+  final TextEditingController birthDateController = TextEditingController();
+  final TextEditingController positionController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
-  final AuthService _authService = AuthService();
 
-  void _signup() async {
+  final UserService _userService = UserService();
+  bool _isLoading = false;
+
+  Future<void> _signup() async {
+    if (!_formKey.currentState!.validate()) return;
+
     if (passwordController.text.trim() !=
         confirmPasswordController.text.trim()) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -26,24 +35,70 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    final user = await _authService.signUp(
-      emailController.text.trim(),
-      passwordController.text.trim(),
-    );
+    setState(() => _isLoading = true);
 
-    if (user != null && mounted) {
+    // 🟡 LOG: Data sắp gửi API
+    debugPrint('====== 📤 SIGNUP REQUEST ======');
+    debugPrint('Fullname: ${fullnameController.text.trim()}');
+    debugPrint('BirthDate: ${birthDateController.text.trim()}');
+    debugPrint('Position: ${positionController.text.trim()}');
+    debugPrint('Email: ${emailController.text.trim()}');
+    debugPrint('===============================');
+
+    try {
+      final result = await _userService.registerUser(
+        fullname: fullnameController.text.trim(),
+        birthDate: birthDateController.text.trim(),
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+        position: positionController.text.trim(),
+      );
+
+      // 🟢 LOG: Kết quả API trả về
+      debugPrint('====== ✅ SIGNUP RESPONSE ======');
+      debugPrint(result.toString());
+      debugPrint('================================');
+
+      if (result != null && result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Đăng ký thành công!')),
+        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        }
+      } else {
+        final msg = result?['message'] ?? 'Đăng ký thất bại. Vui lòng thử lại.';
+        debugPrint('❌ SIGNUP FAILED: $msg');
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      // 🔴 LOG: Lỗi khi gọi API
+      debugPrint('====== 🔥 SIGNUP ERROR ======');
+      debugPrint(e.toString());
+      debugPrint('=============================');
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đăng ký thành công! Hãy đăng nhập.')),
+        const SnackBar(content: Text('Đã xảy ra lỗi kết nối API')),
       );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Đăng ký thất bại')));
+    } finally {
+      setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    fullnameController.dispose();
+    birthDateController.dispose();
+    positionController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -57,7 +112,7 @@ class _SignupScreenState extends State<SignupScreen> {
             children: [
               if (isWide)
                 Expanded(
-                  flex: 1, // chỉnh nhỏ hoặc lớn tùy muốn
+                  flex: 1,
                   child: Container(
                     color: const Color(0xFF005BFF),
                     child: const Center(
@@ -103,6 +158,71 @@ class _SignupScreenState extends State<SignupScreen> {
                             key: _formKey,
                             child: Column(
                               children: [
+                                // Họ và tên
+                                TextFormField(
+                                  controller: fullnameController,
+                                  decoration: InputDecoration(
+                                    labelText: "Họ và tên",
+                                    filled: true,
+                                    fillColor: const Color(0xFFF5F7FA),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Vui lòng nhập họ và tên';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Ngày sinh
+                                TextFormField(
+                                  controller: birthDateController,
+                                  decoration: InputDecoration(
+                                    labelText: "Ngày sinh (YYYY-MM-DD)",
+                                    hintText: "2000-01-30",
+                                    filled: true,
+                                    fillColor: const Color(0xFFF5F7FA),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Vui lòng nhập ngày sinh';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Chức vụ
+                                TextFormField(
+                                  controller: positionController,
+                                  decoration: InputDecoration(
+                                    labelText: "Chức vụ (VD: Lập trình viên)",
+                                    filled: true,
+                                    fillColor: const Color(0xFFF5F7FA),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Vui lòng nhập chức vụ';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Email
                                 TextFormField(
                                   controller: emailController,
                                   decoration: InputDecoration(
@@ -118,10 +238,15 @@ class _SignupScreenState extends State<SignupScreen> {
                                     if (value == null || value.isEmpty) {
                                       return 'Vui lòng nhập email';
                                     }
+                                    if (!value.contains('@')) {
+                                      return 'Email không hợp lệ';
+                                    }
                                     return null;
                                   },
                                 ),
                                 const SizedBox(height: 16),
+
+                                // Mật khẩu
                                 TextFormField(
                                   controller: passwordController,
                                   obscureText: true,
@@ -138,10 +263,15 @@ class _SignupScreenState extends State<SignupScreen> {
                                     if (value == null || value.isEmpty) {
                                       return 'Vui lòng nhập mật khẩu';
                                     }
+                                    if (value.length < 6) {
+                                      return 'Mật khẩu ít nhất 6 ký tự';
+                                    }
                                     return null;
                                   },
                                 ),
                                 const SizedBox(height: 16),
+
+                                // Nhập lại mật khẩu
                                 TextFormField(
                                   controller: confirmPasswordController,
                                   obscureText: true,
@@ -165,15 +295,20 @@ class _SignupScreenState extends State<SignupScreen> {
                                   },
                                 ),
                                 const SizedBox(height: 20),
+
+                                // Nút đăng ký
                                 SizedBox(
                                   width: double.infinity,
                                   height: 48,
                                   child: ElevatedButton(
-                                    onPressed: () {
-                                      if (_formKey.currentState!.validate()) {
-                                        _signup();
-                                      }
-                                    },
+                                    onPressed: _isLoading
+                                        ? null
+                                        : () {
+                                            if (_formKey.currentState!
+                                                .validate()) {
+                                              _signup();
+                                            }
+                                          },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF005BFF),
                                       foregroundColor: Colors.white,
@@ -181,13 +316,18 @@ class _SignupScreenState extends State<SignupScreen> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
-                                    child: const Text(
-                                      "Đăng ký",
-                                      style: TextStyle(fontSize: 16),
-                                    ),
+                                    child: _isLoading
+                                        ? const CircularProgressIndicator(
+                                            color: Colors.white,
+                                          )
+                                        : const Text(
+                                            "Đăng ký",
+                                            style: TextStyle(fontSize: 16),
+                                          ),
                                   ),
                                 ),
                                 const SizedBox(height: 20),
+
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -211,6 +351,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                     ),
                                   ],
                                 ),
+                                const SizedBox(height: 30),
                               ],
                             ),
                           ),

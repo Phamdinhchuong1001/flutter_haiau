@@ -120,3 +120,92 @@ exports.deleteSample = functions.https.onCall(async (data, context) => {
         );
     }
 });
+// ======================================================
+// =================== USER MANAGEMENT ===================
+// ======================================================
+
+const USERS_COLLECTION = 'users';
+
+// ✅ Function check quyền admin
+async function isAdmin(uid) {
+  const user = await admin.auth().getUser(uid);
+  return user.customClaims && user.customClaims.role === 'admin';
+}
+
+// ✅ 1. ĐĂNG KÝ USER (ai cũng gọi được)
+exports.registerUser = functions.https.onCall(async (data, context) => {
+  const { fullname, birthDate, email, password, position } = data;
+  if (!fullname || !birthDate || !email || !password || !position) {
+    throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin đăng ký.');
+  }
+
+  try {
+    const userRecord = await admin.auth().createUser({
+      email: email.trim(),
+      password: password.trim(),
+      displayName: fullname.trim(),
+    });
+
+    const role = email.endsWith('@admin.com') ? 'admin' : 'staff';
+    await admin.auth().setCustomUserClaims(userRecord.uid, { role });
+
+    await db.collection(USERS_COLLECTION).doc(userRecord.uid).set({
+      uid: userRecord.uid,
+      fullname,
+      birthDate,
+      email,
+      position,
+      role,
+      createdAt: admin.firestore.Timestamp.now(),
+    });
+
+    return { success: true, message: 'Đăng ký thành công!', role };
+  } catch (error) {
+    throw new functions.https.HttpsError('internal', 'Không tạo được tài khoản.');
+  }
+});
+
+// ✅ 2. LẤY DANH SÁCH USER (admin + staff đều xem được)
+exports.getUsers = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Bạn chưa đăng nhập.');
+
+  const snapshot = await db.collection(USERS_COLLECTION).get();
+  const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return { success: true, users };
+});
+
+// ✅ 3. UPDATE USER (chỉ admin)
+exports.updateUser = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Bạn chưa đăng nhập.');
+  const adminCheck = await isAdmin(context.auth.uid);
+  if (!adminCheck) throw new functions.https.HttpsError('permission-denied', 'Bạn không phải admin.');
+
+  const { uid, fullname, birthDate, position, role } = data;
+  if (!uid) throw new functions.https.HttpsError('invalid-argument', 'Thiếu UID.');
+
+  await db.collection(USERS_COLLECTION).doc(uid).update({
+    fullname,
+    birthDate,
+    position,
+    role,
+    updatedAt: admin.firestore.Timestamp.now(),
+  });
+
+  if (role) await admin.auth().setCustomUserClaims(uid, { role });
+  return { success: true, message: 'Cập nhật thành công!' };
+});
+
+// ✅ 4. DELETE USER (chỉ admin)
+exports.deleteUser = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Bạn chưa đăng nhập.');
+  const adminCheck = await isAdmin(context.auth.uid);
+  if (!adminCheck) throw new functions.https.HttpsError('permission-denied', 'Bạn không phải admin.');
+
+  const { uid } = data;
+  if (!uid) throw new functions.https.HttpsError('invalid-argument', 'Thiếu UID.');
+
+  await db.collection(USERS_COLLECTION).doc(uid).delete();
+  await admin.auth().deleteUser(uid);
+
+  return { success: true, message: 'Xoá tài khoản thành công!' };
+  });

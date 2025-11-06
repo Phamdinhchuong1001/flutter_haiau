@@ -1,32 +1,34 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_model.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class UserService {
-  final CollectionReference usersRef = FirebaseFirestore.instance.collection(
-    'users',
-  );
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
-  // Lấy danh sách người dùng
-  Stream<List<UserModel>> getUsers() {
-    return usersRef.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-      }).toList();
-    });
-  }
+  Future<Map<String, dynamic>> registerUser({
+    required String fullname,
+    required String birthDate,
+    required String email,
+    required String password,
+    required String position,
+  }) async {
+    try {
+      final HttpsCallable callable = _functions.httpsCallable('registerUser');
+      final response = await callable.call({
+        'fullname': fullname.trim(),
+        'birthDate': birthDate.trim(),
+        'email': email.trim(),
+        'password': password.trim(),
+        'position': position.trim(),
+      });
 
-  // Thêm người dùng
-  Future<void> addUser(UserModel user) async {
-    await usersRef.add(user.toMap());
-  }
-
-  // Cập nhật vai trò
-  Future<void> updateUserRole(String id, String newRole) async {
-    await usersRef.doc(id).update({'role': newRole});
-  }
-
-  // Xóa người dùng
-  Future<void> deleteUser(String id) async {
-    await usersRef.doc(id).delete();
+      return {
+        'success': true,
+        'message': response.data['message'] ?? 'Đăng ký thành công!',
+        'role': response.data['role'],
+      };
+    } on FirebaseFunctionsException catch (e) {
+      return {'success': false, 'message': e.message ?? 'Lỗi từ server.'};
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi không xác định: $e'};
+    }
   }
 }

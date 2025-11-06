@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_haiau/services/auth_service.dart';
 import 'package:flutter_haiau/screens/dashboard_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart'; // ✅ Thêm dòng này để dùng onCall
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -18,13 +19,30 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
 
   bool _isLoading = false;
-  Future<void> _debugTokens(User user) async {
-    final idToken = await user.getIdToken();
 
-    print('DEBUG: FIREBASE AUTH TOKENS');
-    print('ID Token (Access Token): $idToken');
-    print('ID Token Payload (Phân tích Token để xem thông tin):');
+  /// ✅ Hàm gọi Cloud Function getUsers
+  Future<void> _fetchUsersFromCloud() async {
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('getUsers');
+      final response = await callable();
 
+      print('✅ Cloud Function getUsers OK: ${response.data}');
+    } on FirebaseFunctionsException catch (e) {
+      print('❌ Lỗi từ Cloud Functions: ${e.code} - ${e.message}');
+    } catch (e) {
+      print('❌ Lỗi không xác định khi gọi getUsers: $e');
+    }
+  }
+
+  /// ✅ Hàm Debug token + test API
+  Future<void> _debugTokensAndFetch(User user) async {
+    final token = await user.getIdToken();
+    print('✅ ID Token: $token');
+
+    // ✅ Gọi API Cloud Function
+    await _fetchUsersFromCloud();
+
+    // ✅ Điều hướng sang Dashboard
     if (mounted) {
       Navigator.pushReplacement(
         context,
@@ -33,6 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// ✅ Hàm đăng nhập
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -46,28 +65,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final user = FirebaseAuth.instance.currentUser;
 
-      // if (user != null && mounted) {
-      //   Navigator.pushReplacement(
-      //     context,
-      //     MaterialPageRoute(builder: (context) => const DashboardScreen()),
-      //   );
-
       if (user != null && mounted) {
-        await _debugTokens(user);
+        await _debugTokensAndFetch(user);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Đăng nhập thất bại: ${e.toString()}'),
+            content: Text('Đăng nhập thất bại: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -77,7 +88,6 @@ class _LoginScreenState extends State<LoginScreen> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth > 700;
-
           return Row(
             children: [
               if (isWide)
@@ -113,17 +123,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           Image.asset('assets/logo1.jpg', height: 90),
                           const SizedBox(height: 30),
-                          const Center(
-                            child: Text(
-                              "Đăng nhập",
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1A1A),
-                              ),
+                          const Text(
+                            "Đăng nhập",
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A1A1A),
                             ),
                           ),
                           const SizedBox(height: 40),
+
+                          /// ✅ FORM LOGIN
                           Form(
                             key: _formKey,
                             child: Column(
@@ -139,12 +149,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                       borderSide: BorderSide.none,
                                     ),
                                   ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Vui lòng nhập email';
-                                    }
-                                    return null;
-                                  },
+                                  validator: (value) =>
+                                      value == null || value.isEmpty
+                                      ? 'Vui lòng nhập email'
+                                      : null,
                                 ),
                                 const SizedBox(height: 16),
                                 TextFormField(
@@ -159,35 +167,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                       borderSide: BorderSide.none,
                                     ),
                                   ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Vui lòng nhập mật khẩu';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () {},
-                                    child: const Text(
-                                      'Quên mật khẩu?',
-                                      style: TextStyle(
-                                        color: Color(0xFF005BFF),
-                                      ),
-                                    ),
-                                  ),
+                                  validator: (value) =>
+                                      value == null || value.isEmpty
+                                      ? 'Vui lòng nhập mật khẩu'
+                                      : null,
                                 ),
                                 const SizedBox(height: 12),
+
+                                /// ✅ NÚT ĐĂNG NHẬP
                                 SizedBox(
                                   width: double.infinity,
                                   height: 48,
                                   child: ElevatedButton(
-                                    onPressed: () {
-                                      if (_formKey.currentState!.validate()) {
-                                        _signIn();
-                                      }
-                                    },
+                                    onPressed: _isLoading ? null : _signIn,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF005BFF),
                                       foregroundColor: Colors.white,
@@ -195,13 +187,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
-                                    child: const Text(
-                                      "Đăng nhập",
-                                      style: TextStyle(fontSize: 16),
-                                    ),
+                                    child: _isLoading
+                                        ? const CircularProgressIndicator(
+                                            color: Colors.white,
+                                          )
+                                        : const Text("Đăng nhập"),
                                   ),
                                 ),
                                 const SizedBox(height: 20),
+
+                                // ✅ Chuyển qua đăng ký
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [

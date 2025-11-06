@@ -1,5 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// user_management_screen.dart
+import 'dart:async';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'user_detail_screen.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -10,10 +13,176 @@ class UserManagementScreen extends StatefulWidget {
 }
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
+  final FirebaseFunctions functions = FirebaseFunctions.instance;
+  final FirebaseAuth auth = FirebaseAuth.instance;
+
+  List<Map<String, dynamic>> users = [];
   String searchQuery = '';
+  bool loading = true;
+  bool isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initRoleAndLoad();
+  }
+
+  Future<void> _initRoleAndLoad() async {
+    setState(() => loading = true);
+    try {
+      final user = auth.currentUser;
+      if (user != null) {
+        final idToken = await user.getIdTokenResult();
+        isAdmin = (idToken.claims?['role'] == 'admin');
+      } else {
+        isAdmin = false;
+      }
+    } catch (e) {
+      isAdmin = false;
+    }
+    await fetchUsers();
+    setState(() => loading = false);
+  }
+
+  Future<void> fetchUsers() async {
+    setState(() => loading = true);
+    try {
+      debugPrint('📡 Gửi request getUsers...');
+
+      final callable = functions.httpsCallable('getUsers');
+      final result = await callable();
+
+      debugPrint('✅ Response từ getUsers: ${result.data}');
+
+      final data = result.data;
+      final rawList = (data['users'] as List<dynamic>? ?? []);
+
+      if (rawList.isEmpty) {
+        debugPrint('ℹ️ API trả về danh sách rỗng');
+      }
+
+      users = rawList.map<Map<String, dynamic>>((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+
+        if (m['fullname'] != null && (m['name'] == null || m['name'] == '')) {
+          m['name'] = m['fullname'];
+        } else if (m['name'] != null &&
+            (m['fullname'] == null || m['fullname'] == '')) {
+          m['fullname'] = m['name'];
+        }
+        return m;
+      }).toList();
+
+      debugPrint('📊 Tổng số user nhận được: ${users.length}');
+    } catch (e, st) {
+      debugPrint('❌ API Error fetchUsers: $e');
+      debugPrint('❗ StackTrace: $st');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lấy danh sách nhân viên thất bại: ${e.toString()}'),
+        ),
+      );
+      users = [];
+    } finally {
+      setState(() => loading = false);
+      debugPrint('🏁 Hoàn tất fetchUsers()');
+    }
+  }
+
+  // Xoá user bằng Cloud Function deleteUser (chỉ admin gọi được)
+  Future<void> deleteUser(String uid) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận'),
+        content: const Text('Bạn có chắc muốn xoá tài khoản này?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) {
+      debugPrint('⚠️ Hủy xóa user với uid: $uid');
+      return;
+    }
+
+    try {
+      debugPrint('📡 Gửi request deleteUser với uid: $uid');
+      final callable = functions.httpsCallable('deleteUser');
+      final result = await callable({'uid': uid});
+      debugPrint('✅ deleteUser thành công. Response: ${result.data}');
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Xóa thành công')));
+
+      await fetchUsers();
+    } catch (e, st) {
+      debugPrint('❌ deleteUser error: $e');
+      debugPrint('❗ StackTrace: $st');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Xóa thất bại: ${e.toString()}')));
+    }
+  }
+
+  // Open detail page and handle possible update -> refresh list after pop
+  Future<void> openDetail(Map<String, dynamic> userData) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UserDetailScreen(
+          userId: userData['id'] ?? userData['uid'] ?? '',
+          userData: userData,
+          isAdmin: isAdmin,
+        ),
+      ),
+    );
+    await fetchUsers();
+  }
+
+  // show dialog to add user (calls registerUser cloud function)
+  Future<void> showAddUserDialog() async {
+    if (!isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bạn không có quyền thêm người dùng')),
+      );
+      return;
+    }
+    await showDialog(
+      context: context,
+      builder: (_) => AddUserDialog(onCreated: () => fetchUsers()),
+    );
+  }
+
+  List<Map<String, dynamic>> _applySearch() {
+    if (searchQuery.trim().isEmpty) return users;
+    final q = searchQuery.toLowerCase();
+    return users.where((m) {
+      final name = (m['name'] ?? '').toString().toLowerCase();
+      final pos = (m['position'] ?? '').toString().toLowerCase();
+      final role = (m['role'] ?? '').toString().toLowerCase();
+      final email = (m['email'] ?? '').toString().toLowerCase();
+      return name.contains(q) ||
+          pos.contains(q) ||
+          role.contains(q) ||
+          email.contains(q);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final filtered = _applySearch();
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF005BFF),
@@ -25,21 +194,20 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: fetchUsers,
+            tooltip: 'Làm mới',
+          ),
+          IconButton(
             icon: const Icon(Icons.add_box, color: Colors.white),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => const AddUserDialog(),
-              );
-            },
+            onPressed: showAddUserDialog,
+            tooltip: 'Thêm nhân viên',
           ),
         ],
       ),
-
-      // ========== PHẦN THÂN ==========
       body: Column(
         children: [
-          // 🔍 Ô tìm kiếm
+          // search
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
             child: SizedBox(
@@ -54,10 +222,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   prefixIcon: const Icon(Icons.search, size: 20),
                   filled: true,
                   fillColor: Colors.grey.shade100,
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 0,
-                    horizontal: 10,
-                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(color: Colors.grey.shade300),
@@ -71,97 +235,80 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     borderSide: BorderSide(color: Colors.grey.shade400),
                   ),
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    searchQuery = value.toLowerCase();
-                  });
-                },
+                onChanged: (v) => setState(() => searchQuery = v),
               ),
             ),
           ),
 
-          // ========== DANH SÁCH NHÂN VIÊN ==========
+          // body
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .orderBy('name', descending: false)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('Chưa có nhân viên nào.'));
-                }
+            child: loading
+                ? const Center(child: CircularProgressIndicator())
+                : filtered.isEmpty
+                ? Center(
+                    child: Text(
+                      users.isEmpty
+                          ? 'Chưa có nhân viên nào.'
+                          : 'Không tìm thấy nhân viên nào.',
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (context, idx) {
+                      final data = filtered[idx];
+                      final displayName =
+                          (data['name'] ?? data['fullname'] ?? '').toString();
+                      final position = (data['position'] ?? '').toString();
+                      final email = (data['email'] ?? '').toString();
+                      final role = (data['role'] ?? '').toString();
 
-                final users = snapshot.data!.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-
-                  final name = (data['name'] ?? '').toString().toLowerCase();
-                  final position = (data['position'] ?? '')
-                      .toString()
-                      .toLowerCase();
-                  final role = (data['role'] ?? '').toString().toLowerCase();
-                  final email = (data['email'] ?? '').toString().toLowerCase();
-
-                  if (searchQuery.isEmpty) return true;
-
-                  return name.contains(searchQuery) ||
-                      position.contains(searchQuery) ||
-                      role.contains(searchQuery) ||
-                      email.contains(searchQuery);
-                }).toList();
-
-                if (users.isEmpty) {
-                  return const Center(
-                    child: Text('Không tìm thấy nhân viên nào.'),
-                  );
-                }
-
-                return ListView.builder(
-                  itemCount: users.length,
-                  itemBuilder: (context, index) {
-                    final user = users[index];
-                    final data = user.data() as Map<String, dynamic>;
-
-                    return Card(
-                      elevation: 1.5,
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.blue.shade600,
-                          child: const Icon(Icons.person, color: Colors.white),
+                      return Card(
+                        elevation: 1.5,
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
                         ),
-                        title: Text(
-                          data['name'] ?? 'Không có tên',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        subtitle: Text(data['position'] ?? 'Không có chức vụ'),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => UserDetailScreen(
-                                userId: user.id,
-                                userData: data,
-                              ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.blue.shade600,
+                            child: const Icon(
+                              Icons.person,
+                              color: Colors.white,
                             ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                          ),
+                          title: Text(
+                            displayName.isNotEmpty
+                                ? displayName
+                                : 'Không có tên',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            position.isNotEmpty ? position : 'Không có chức vụ',
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isAdmin)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () => deleteUser(
+                                    data['id'] ?? data['uid'] ?? data['uid'],
+                                  ),
+                                ),
+                              const Icon(Icons.arrow_forward_ios, size: 16),
+                            ],
+                          ),
+                          onTap: () => openDetail(data),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -169,9 +316,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 }
 
-// ========== DIALOG THÊM NHÂN VIÊN ==========
+// ---------- AddUserDialog (calls registerUser) ----------
 class AddUserDialog extends StatefulWidget {
-  const AddUserDialog({super.key});
+  final VoidCallback? onCreated;
+  const AddUserDialog({super.key, this.onCreated});
 
   @override
   State<AddUserDialog> createState() => _AddUserDialogState();
@@ -179,48 +327,77 @@ class AddUserDialog extends StatefulWidget {
 
 class _AddUserDialogState extends State<AddUserDialog> {
   final _formKey = GlobalKey<FormState>();
-  final nameController = TextEditingController();
-  final emailController = TextEditingController();
-  final phoneController = TextEditingController();
-  final positionController = TextEditingController();
-  final roleController = TextEditingController();
+  final FirebaseFunctions functions = FirebaseFunctions.instance;
 
-  Future<void> addUser() async {
-    if (_formKey.currentState!.validate()) {
-      await FirebaseFirestore.instance.collection('users').add({
-        'name': nameController.text.trim(),
-        'email': emailController.text.trim(),
-        'phone': phoneController.text.trim(),
-        'position': positionController.text.trim(),
-        'role': roleController.text.trim(),
-      });
+  final fullnameCtrl = TextEditingController();
+  final birthDateCtrl = TextEditingController();
+  final emailCtrl = TextEditingController();
+  final passwordCtrl = TextEditingController();
+  final positionCtrl = TextEditingController();
+  final roleCtrl = TextEditingController();
 
-      if (mounted) {
+  bool submitting = false;
+
+  Future<void> submit() async {
+    if (!_formKey.currentState!.validate()) {
+      debugPrint('⚠️ Form không hợp lệ – thiếu dữ liệu');
+      return;
+    }
+    setState(() => submitting = true);
+
+    final dataSend = {
+      'fullname': fullnameCtrl.text.trim(),
+      'birthDate': birthDateCtrl.text.trim(),
+      'email': emailCtrl.text.trim(),
+      'password': passwordCtrl.text.trim(),
+      'position': positionCtrl.text.trim(),
+    };
+
+    try {
+      debugPrint('📡 Gửi request registerUser với payload: $dataSend');
+      final callable = functions.httpsCallable('registerUser');
+      final res = await callable(dataSend);
+      debugPrint('✅ Response registerUser: ${res.data}');
+
+      final data = res.data;
+      if (data != null && data['success'] == true) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thêm nhân viên thành công!')),
+          const SnackBar(content: Text('Tạo tài khoản thành công')),
+        );
+        widget.onCreated?.call();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể tạo tài khoản: ${data?['message'] ?? ''}'),
+          ),
         );
       }
+    } catch (e, st) {
+      debugPrint('❌ registerUser error: $e');
+      debugPrint('❗ StackTrace: $st');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi tạo tài khoản: ${e.toString()}')),
+      );
+    } finally {
+      setState(() => submitting = false);
     }
   }
 
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: Colors.grey.shade100,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    );
-  }
+  InputDecoration _input(String label) => InputDecoration(
+    labelText: label,
+    filled: true,
+    fillColor: Colors.grey.shade100,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide.none,
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  );
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: const Text(
         'Thêm nhân viên mới',
         style: TextStyle(fontWeight: FontWeight.bold),
@@ -232,32 +409,40 @@ class _AddUserDialogState extends State<AddUserDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextFormField(
-                controller: nameController,
-                decoration: _inputDecoration('Họ tên'),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Nhập tên' : null,
+                controller: fullnameCtrl,
+                decoration: _input('Họ và tên'),
+                validator: (v) => v == null || v.isEmpty ? 'Nhập tên' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextFormField(
-                controller: emailController,
-                decoration: _inputDecoration('Email'),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Nhập email' : null,
+                controller: birthDateCtrl,
+                decoration: _input('Ngày sinh (YYYY-MM-DD)'),
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Nhập ngày sinh' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextFormField(
-                controller: phoneController,
-                decoration: _inputDecoration('Số điện thoại'),
+                controller: emailCtrl,
+                decoration: _input('Email'),
+                validator: (v) => v == null || v.isEmpty ? 'Nhập email' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextFormField(
-                controller: positionController,
-                decoration: _inputDecoration('Chức vụ'),
+                controller: passwordCtrl,
+                decoration: _input('Mật khẩu'),
+                obscureText: true,
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Nhập mật khẩu' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextFormField(
-                controller: roleController,
-                decoration: _inputDecoration('Vai trò'),
+                controller: positionCtrl,
+                decoration: _input('Chức vụ'),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: roleCtrl,
+                decoration: _input('Vai trò (tự set nếu muốn)'),
               ),
             ],
           ),
@@ -269,15 +454,14 @@ class _AddUserDialogState extends State<AddUserDialog> {
           child: const Text('Hủy'),
         ),
         ElevatedButton(
-          onPressed: addUser,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          child: const Text('Thêm'),
+          onPressed: submitting ? null : submit,
+          child: submitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Thêm'),
         ),
       ],
     );
