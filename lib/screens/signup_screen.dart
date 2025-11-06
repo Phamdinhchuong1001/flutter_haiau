@@ -141,7 +141,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Image.asset('assets/logo1.jpg', height: 90),
+                          Image.asset('assets/logokonen.png', height: 90),
                           const SizedBox(height: 30),
                           const Center(
                             child: Text(
@@ -164,7 +164,12 @@ class _SignupScreenState extends State<SignupScreen> {
                                   decoration: InputDecoration(
                                     labelText: "Họ và tên",
                                     filled: true,
-                                    fillColor: const Color(0xFFF5F7FA),
+                                    fillColor: const Color.fromARGB(
+                                      255,
+                                      228,
+                                      238,
+                                      255,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
@@ -186,7 +191,12 @@ class _SignupScreenState extends State<SignupScreen> {
                                     labelText: "Ngày sinh (YYYY-MM-DD)",
                                     hintText: "2000-01-30",
                                     filled: true,
-                                    fillColor: const Color(0xFFF5F7FA),
+                                    fillColor: const Color.fromARGB(
+                                      255,
+                                      228,
+                                      238,
+                                      255,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
@@ -205,9 +215,14 @@ class _SignupScreenState extends State<SignupScreen> {
                                 TextFormField(
                                   controller: positionController,
                                   decoration: InputDecoration(
-                                    labelText: "Chức vụ (VD: Lập trình viên)",
+                                    labelText: "Chức vụ",
                                     filled: true,
-                                    fillColor: const Color(0xFFF5F7FA),
+                                    fillColor: const Color.fromARGB(
+                                      255,
+                                      228,
+                                      238,
+                                      255,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
@@ -228,7 +243,12 @@ class _SignupScreenState extends State<SignupScreen> {
                                   decoration: InputDecoration(
                                     labelText: "Email",
                                     filled: true,
-                                    fillColor: const Color(0xFFF5F7FA),
+                                    fillColor: const Color.fromARGB(
+                                      255,
+                                      228,
+                                      238,
+                                      255,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
@@ -253,7 +273,12 @@ class _SignupScreenState extends State<SignupScreen> {
                                   decoration: InputDecoration(
                                     labelText: "Mật khẩu",
                                     filled: true,
-                                    fillColor: const Color(0xFFF5F7FA),
+                                    fillColor: const Color.fromARGB(
+                                      255,
+                                      228,
+                                      238,
+                                      255,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
@@ -278,7 +303,12 @@ class _SignupScreenState extends State<SignupScreen> {
                                   decoration: InputDecoration(
                                     labelText: "Nhập lại mật khẩu",
                                     filled: true,
-                                    fillColor: const Color(0xFFF5F7FA),
+                                    fillColor: const Color.fromARGB(
+                                      255,
+                                      228,
+                                      238,
+                                      255,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,

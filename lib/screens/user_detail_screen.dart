@@ -188,59 +188,126 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
-            const CircleAvatar(
-              radius: 40,
-              backgroundColor: Color(0xFFE3F2FD),
-              child: Icon(Icons.person, size: 40, color: Color(0xFF2196F3)),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              fullnameController.text,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const Divider(height: 24),
-            _infoField('Họ tên', fullnameController, Icons.person),
-            _infoField('Email', emailController, Icons.email, enabled: false),
-            _infoField('Số điện thoại', phoneController, Icons.phone),
-            _infoField('Chức vụ', positionController, Icons.work),
-            _infoField('Vai trò', roleController, Icons.admin_panel_settings),
-            _infoField('Ngày sinh', birthDateController, Icons.calendar_today),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: widget.isAdmin && !submitting
-                        ? _updateUser
-                        : null,
-                    icon: const Icon(Icons.save),
-                    label: Text(submitting ? 'Đang...' : 'Cập nhật'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
+      body: Container(
+        color: const Color(0xFFF5F6FA), // nền xám nhạt
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 800;
+
+            return Center(
+              child: Container(
+                width: isWide ? 700 : double.infinity,
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      const CircleAvatar(
+                        radius: 45,
+                        backgroundColor: Color(0xFFE3F2FD),
+                        child: Icon(
+                          Icons.person,
+                          size: 50,
+                          color: Color(0xFF2196F3),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Tên nhân viên
+                      Text(
+                        fullnameController.text,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Divider(height: 32),
+
+                      // Các field thông tin
+                      _infoField('Họ tên', fullnameController, Icons.person),
+                      _infoField(
+                        'Email',
+                        emailController,
+                        Icons.email,
+                        enabled: false,
+                      ),
+
+                      _infoField('Chức vụ', positionController, Icons.work),
+                      _infoField(
+                        'Vai trò',
+                        roleController,
+                        Icons.admin_panel_settings,
+                      ),
+                      _infoField(
+                        'Ngày sinh',
+                        birthDateController,
+                        Icons.calendar_today,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Nút hành động
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: widget.isAdmin && !submitting
+                                  ? _updateUser
+                                  : null,
+                              icon: const Icon(Icons.save),
+                              label: Text(submitting ? 'Đang...' : 'Cập nhật'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: widget.isAdmin && !submitting
+                                  ? _deleteUser
+                                  : null,
+                              icon: const Icon(Icons.delete),
+                              label: const Text('Xóa'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: widget.isAdmin && !submitting
-                        ? _deleteUser
-                        : null,
-                    icon: const Icon(Icons.delete),
-                    label: const Text('Xóa'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            );
+          },
         ),
       ),
     );

@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Image.asset('assets/logo1.jpg', height: 90),
+                          Image.asset('assets/logokonen.png', height: 90),
                           const SizedBox(height: 30),
                           const Text(
                             "Đăng nhập",
@@ -143,7 +143,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   decoration: InputDecoration(
                                     labelText: "Email",
                                     filled: true,
-                                    fillColor: const Color(0xFFF5F7FA),
+                                    fillColor: const Color.fromARGB(
+                                      255,
+                                      228,
+                                      238,
+                                      255,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
@@ -161,7 +166,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   decoration: InputDecoration(
                                     labelText: "Password",
                                     filled: true,
-                                    fillColor: const Color(0xFFF5F7FA),
+                                    fillColor: const Color.fromARGB(
+                                      255,
+                                      228,
+                                      238,
+                                      255,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
