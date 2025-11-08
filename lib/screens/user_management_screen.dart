@@ -169,13 +169,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final q = searchQuery.toLowerCase();
     return users.where((m) {
       final name = (m['name'] ?? '').toString().toLowerCase();
-      final pos = (m['position'] ?? '').toString().toLowerCase();
       final role = (m['role'] ?? '').toString().toLowerCase();
       final email = (m['email'] ?? '').toString().toLowerCase();
-      return name.contains(q) ||
-          pos.contains(q) ||
-          role.contains(q) ||
-          email.contains(q);
+      return name.contains(q) || role.contains(q) || email.contains(q);
     }).toList();
   }
 
@@ -258,7 +254,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       final data = filtered[idx];
                       final displayName =
                           (data['name'] ?? data['fullname'] ?? '').toString();
-                      final position = (data['position'] ?? '').toString();
                       final email = (data['email'] ?? '').toString();
                       final role = (data['role'] ?? '').toString();
 
@@ -286,7 +281,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Text(
-                            position.isNotEmpty ? position : 'Không có chức vụ',
+                            role.isNotEmpty ? role : 'Không có chức vụ',
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -330,10 +325,8 @@ class _AddUserDialogState extends State<AddUserDialog> {
   final FirebaseFunctions functions = FirebaseFunctions.instance;
 
   final fullnameCtrl = TextEditingController();
-  final birthDateCtrl = TextEditingController();
   final emailCtrl = TextEditingController();
   final passwordCtrl = TextEditingController();
-  final positionCtrl = TextEditingController();
   final roleCtrl = TextEditingController();
 
   bool submitting = false;
@@ -347,10 +340,8 @@ class _AddUserDialogState extends State<AddUserDialog> {
 
     final dataSend = {
       'fullname': fullnameCtrl.text.trim(),
-      'birthDate': birthDateCtrl.text.trim(),
       'email': emailCtrl.text.trim(),
       'password': passwordCtrl.text.trim(),
-      'position': positionCtrl.text.trim(),
     };
 
     try {
@@ -413,13 +404,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
                 decoration: _input('Họ và tên'),
                 validator: (v) => v == null || v.isEmpty ? 'Nhập tên' : null,
               ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: birthDateCtrl,
-                decoration: _input('Ngày sinh (YYYY-MM-DD)'),
-                validator: (v) =>
-                    v == null || v.isEmpty ? 'Nhập ngày sinh' : null,
-              ),
+
               const SizedBox(height: 8),
               TextFormField(
                 controller: emailCtrl,
@@ -433,16 +418,6 @@ class _AddUserDialogState extends State<AddUserDialog> {
                 obscureText: true,
                 validator: (v) =>
                     v == null || v.isEmpty ? 'Nhập mật khẩu' : null,
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: positionCtrl,
-                decoration: _input('Chức vụ'),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: roleCtrl,
-                decoration: _input('Vai trò (tự set nếu muốn)'),
               ),
             ],
           ),

@@ -125,6 +125,8 @@ exports.deleteSample = functions.https.onCall(async (data, context) => {
 // ======================================================
 
 const USERS_COLLECTION = 'users';
+const ADMIN_EMAIL = 'haiau@admin.com';
+const ADMIN_PASSWORD = '123456';
 
 // ✅ Function check quyền admin
 async function isAdmin(uid) {
@@ -132,11 +134,53 @@ async function isAdmin(uid) {
   return user.customClaims && user.customClaims.role === 'admin';
 }
 
-// ✅ 1. ĐĂNG KÝ USER (ai cũng gọi được)
+// ✅ Function đảm bảo luôn có 1 admin cố định tồn tại
+async function ensureAdminAccount() {
+  try {
+    // Kiểm tra xem admin cố định đã tồn tại chưa
+    const user = await admin.auth().getUserByEmail(ADMIN_EMAIL);
+    console.log('✅ Admin đã tồn tại:', user.email);
+  } catch (error) {
+    if (error.code === 'auth/user-not-found') {
+      // Nếu chưa có thì tạo mới
+      const adminUser = await admin.auth().createUser({
+        email: ADMIN_EMAIL,
+        password: ADMIN_PASSWORD,
+        displayName: 'Admin cố định',
+      });
+
+      await admin.auth().setCustomUserClaims(adminUser.uid, { role: 'admin' });
+      await db.collection(USERS_COLLECTION).doc(adminUser.uid).set({
+        uid: adminUser.uid,
+        fullname: 'Admin cố định',
+        email: ADMIN_EMAIL,
+        role: 'admin',
+        createdAt: admin.firestore.Timestamp.now(),
+      });
+
+      console.log('✅ Đã tạo admin cố định:', ADMIN_EMAIL);
+    } else {
+      console.error('❌ Lỗi khi kiểm tra admin:', error);
+    }
+  }
+}
+
+// Gọi hàm khi khởi chạy
+ensureAdminAccount();
+
+// ✅ 1. ĐĂNG KÝ USER (chỉ được tạo tài khoản nhân viên)
 exports.registerUser = functions.https.onCall(async (data, context) => {
-  const { fullname, birthDate, email, password, position } = data;
-  if (!fullname || !birthDate || !email || !password || !position) {
+  const { fullname, email, password } = data;
+  if (!fullname || !email || !password ) {
     throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin đăng ký.');
+  }
+
+  // 🚫 Không cho phép tạo email admin
+  if (email.trim().endsWith('@admin.com')) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Không thể tạo tài khoản admin.'
+    );
   }
 
   try {
@@ -146,28 +190,29 @@ exports.registerUser = functions.https.onCall(async (data, context) => {
       displayName: fullname.trim(),
     });
 
-    const role = email.endsWith('@admin.com') ? 'admin' : 'staff';
+    // Luôn set role = staff
+    const role = 'staff';
     await admin.auth().setCustomUserClaims(userRecord.uid, { role });
 
     await db.collection(USERS_COLLECTION).doc(userRecord.uid).set({
       uid: userRecord.uid,
       fullname,
-      birthDate,
       email,
-      position,
       role,
       createdAt: admin.firestore.Timestamp.now(),
     });
 
     return { success: true, message: 'Đăng ký thành công!', role };
   } catch (error) {
+    console.error('Lỗi khi tạo user:', error);
     throw new functions.https.HttpsError('internal', 'Không tạo được tài khoản.');
   }
 });
 
 // ✅ 2. LẤY DANH SÁCH USER (admin + staff đều xem được)
 exports.getUsers = functions.https.onCall(async (data, context) => {
-  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Bạn chưa đăng nhập.');
+  if (!context.auth)
+    throw new functions.https.HttpsError('unauthenticated', 'Bạn chưa đăng nhập.');
 
   const snapshot = await db.collection(USERS_COLLECTION).get();
   const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -176,17 +221,18 @@ exports.getUsers = functions.https.onCall(async (data, context) => {
 
 // ✅ 3. UPDATE USER (chỉ admin)
 exports.updateUser = functions.https.onCall(async (data, context) => {
-  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Bạn chưa đăng nhập.');
+  if (!context.auth)
+    throw new functions.https.HttpsError('unauthenticated', 'Bạn chưa đăng nhập.');
   const adminCheck = await isAdmin(context.auth.uid);
-  if (!adminCheck) throw new functions.https.HttpsError('permission-denied', 'Bạn không phải admin.');
+  if (!adminCheck)
+    throw new functions.https.HttpsError('permission-denied', 'Bạn không phải admin.');
 
-  const { uid, fullname, birthDate, position, role } = data;
-  if (!uid) throw new functions.https.HttpsError('invalid-argument', 'Thiếu UID.');
+  const { uid, fullname, role } = data;
+  if (!uid)
+    throw new functions.https.HttpsError('invalid-argument', 'Thiếu UID.');
 
   await db.collection(USERS_COLLECTION).doc(uid).update({
     fullname,
-    birthDate,
-    position,
     role,
     updatedAt: admin.firestore.Timestamp.now(),
   });
@@ -195,17 +241,32 @@ exports.updateUser = functions.https.onCall(async (data, context) => {
   return { success: true, message: 'Cập nhật thành công!' };
 });
 
-// ✅ 4. DELETE USER (chỉ admin)
+// ✅ 4. DELETE USER (chỉ admin, không được xóa admin)
 exports.deleteUser = functions.https.onCall(async (data, context) => {
-  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Bạn chưa đăng nhập.');
+  if (!context.auth)
+    throw new functions.https.HttpsError('unauthenticated', 'Bạn chưa đăng nhập.');
   const adminCheck = await isAdmin(context.auth.uid);
-  if (!adminCheck) throw new functions.https.HttpsError('permission-denied', 'Bạn không phải admin.');
+  if (!adminCheck)
+    throw new functions.https.HttpsError('permission-denied', 'Bạn không phải admin.');
 
   const { uid } = data;
-  if (!uid) throw new functions.https.HttpsError('invalid-argument', 'Thiếu UID.');
+  if (!uid)
+    throw new functions.https.HttpsError('invalid-argument', 'Thiếu UID.');
 
-  await db.collection(USERS_COLLECTION).doc(uid).delete();
-  await admin.auth().deleteUser(uid);
+  try {
+    const user = await admin.auth().getUser(uid);
 
-  return { success: true, message: 'Xoá tài khoản thành công!' };
-  });
+    // 🚫 Không cho xóa admin cố định hoặc bất kỳ admin nào
+    if (user.email === ADMIN_EMAIL || (user.customClaims && user.customClaims.role === 'admin')) {
+      throw new functions.https.HttpsError('permission-denied', 'Không thể xóa tài khoản admin.');
+    }
+
+    await admin.auth().deleteUser(uid);
+    await db.collection(USERS_COLLECTION).doc(uid).delete();
+
+    return { success: true, message: 'Xóa tài khoản nhân viên thành công!' };
+  } catch (error) {
+    console.error('Lỗi khi xóa user:', error);
+    throw new functions.https.HttpsError('internal', error.message);
+  }
+});

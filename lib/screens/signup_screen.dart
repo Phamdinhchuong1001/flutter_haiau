@@ -12,10 +12,7 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers (thêm fullname, birthDate, position)
   final TextEditingController fullnameController = TextEditingController();
-  final TextEditingController birthDateController = TextEditingController();
-  final TextEditingController positionController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
@@ -40,18 +37,14 @@ class _SignupScreenState extends State<SignupScreen> {
     // 🟡 LOG: Data sắp gửi API
     debugPrint('====== 📤 SIGNUP REQUEST ======');
     debugPrint('Fullname: ${fullnameController.text.trim()}');
-    debugPrint('BirthDate: ${birthDateController.text.trim()}');
-    debugPrint('Position: ${positionController.text.trim()}');
     debugPrint('Email: ${emailController.text.trim()}');
     debugPrint('===============================');
 
     try {
       final result = await _userService.registerUser(
         fullname: fullnameController.text.trim(),
-        birthDate: birthDateController.text.trim(),
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
-        position: positionController.text.trim(),
       );
 
       // 🟢 LOG: Kết quả API trả về
@@ -93,8 +86,6 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   void dispose() {
     fullnameController.dispose();
-    birthDateController.dispose();
-    positionController.dispose();
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
@@ -178,59 +169,6 @@ class _SignupScreenState extends State<SignupScreen> {
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
                                       return 'Vui lòng nhập họ và tên';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Ngày sinh
-                                TextFormField(
-                                  controller: birthDateController,
-                                  decoration: InputDecoration(
-                                    labelText: "Ngày sinh (YYYY-MM-DD)",
-                                    hintText: "2000-01-30",
-                                    filled: true,
-                                    fillColor: const Color.fromARGB(
-                                      255,
-                                      228,
-                                      238,
-                                      255,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Vui lòng nhập ngày sinh';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Chức vụ
-                                TextFormField(
-                                  controller: positionController,
-                                  decoration: InputDecoration(
-                                    labelText: "Chức vụ",
-                                    filled: true,
-                                    fillColor: const Color.fromARGB(
-                                      255,
-                                      228,
-                                      238,
-                                      255,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Vui lòng nhập chức vụ';
                                     }
                                     return null;
                                   },

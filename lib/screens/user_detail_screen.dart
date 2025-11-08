@@ -1,4 +1,3 @@
-// user_detail_screen.dart
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
@@ -21,10 +20,7 @@ class UserDetailScreen extends StatefulWidget {
 class _UserDetailScreenState extends State<UserDetailScreen> {
   late TextEditingController fullnameController;
   late TextEditingController emailController;
-  late TextEditingController phoneController;
-  late TextEditingController positionController;
   late TextEditingController roleController;
-  late TextEditingController birthDateController;
 
   final FirebaseFunctions functions = FirebaseFunctions.instance;
   bool submitting = false;
@@ -38,26 +34,13 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     emailController = TextEditingController(
       text: widget.userData['email'] ?? '',
     );
-    phoneController = TextEditingController(
-      text: widget.userData['phone'] ?? '',
-    );
-    positionController = TextEditingController(
-      text: widget.userData['position'] ?? '',
-    );
     roleController = TextEditingController(text: widget.userData['role'] ?? '');
-    birthDateController = TextEditingController(
-      text: widget.userData['birthDate'] ?? '',
-    );
   }
 
   bool _hasChanged() {
     return fullnameController.text !=
             (widget.userData['fullname'] ?? widget.userData['name'] ?? '') ||
-        emailController.text != (widget.userData['email'] ?? '') ||
-        phoneController.text != (widget.userData['phone'] ?? '') ||
-        positionController.text != (widget.userData['position'] ?? '') ||
-        roleController.text != (widget.userData['role'] ?? '') ||
-        birthDateController.text != (widget.userData['birthDate'] ?? '');
+        roleController.text != (widget.userData['role'] ?? '');
   }
 
   Future<void> _updateUser() async {
@@ -84,8 +67,6 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       final payload = {
         'uid': widget.userId,
         'fullname': fullnameController.text.trim(),
-        'birthDate': birthDateController.text.trim(),
-        'position': positionController.text.trim(),
         'role': roleController.text.trim(),
       };
 
@@ -189,7 +170,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         foregroundColor: Colors.white,
       ),
       body: Container(
-        color: const Color(0xFFF5F6FA), // nền xám nhạt
+        color: const Color(0xFFF5F6FA),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isWide = constraints.maxWidth > 800;
@@ -224,8 +205,6 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-
-                      // Tên nhân viên
                       Text(
                         fullnameController.text,
                         style: const TextStyle(
@@ -235,7 +214,6 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                       ),
                       const Divider(height: 32),
 
-                      // Các field thông tin
                       _infoField('Họ tên', fullnameController, Icons.person),
                       _infoField(
                         'Email',
@@ -244,21 +222,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         enabled: false,
                       ),
 
-                      _infoField('Chức vụ', positionController, Icons.work),
-                      _infoField(
-                        'Vai trò',
-                        roleController,
-                        Icons.admin_panel_settings,
-                      ),
-                      _infoField(
-                        'Ngày sinh',
-                        birthDateController,
-                        Icons.calendar_today,
-                      ),
+                      // 👉 Dropdown vai trò
+                      _roleDropdown(),
 
                       const SizedBox(height: 24),
 
-                      // Nút hành động
                       Row(
                         children: [
                           Expanded(
@@ -323,9 +291,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextField(
         controller: ctrl,
-        enabled:
-            enabled &&
-            widget.isAdmin, // only admin can edit (except email disabled)
+        enabled: enabled && widget.isAdmin,
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: const Color(0xFF2196F3)),
           labelText: label,
@@ -335,6 +301,58 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _roleDropdown() {
+    final roles = ['admin', 'staff'];
+    final primaryColor = const Color(0xFF2196F3);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Container(
+        height: 55,
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            Icon(Icons.admin_panel_settings, color: primaryColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: widget.isAdmin
+                  ? DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: roleController.text.isEmpty
+                            ? roles.last
+                            : roleController.text,
+                        isExpanded: true,
+                        items: roles.map((r) {
+                          return DropdownMenuItem<String>(
+                            value: r,
+                            child: Text(
+                              r,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            roleController.text = value!;
+                          });
+                        },
+                      ),
+                    )
+                  : Text(
+                      roleController.text,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+            ),
+          ],
         ),
       ),
     );
