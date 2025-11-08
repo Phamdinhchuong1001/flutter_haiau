@@ -165,8 +165,20 @@ async function ensureAdminAccount() {
   }
 }
 
-// Gọi hàm khi khởi chạy
+// ✅ Gọi hàm khi khởi chạy (tự đảm bảo admin luôn tồn tại)
 ensureAdminAccount();
+
+// ✅ API thủ công để tạo lại admin nếu bị xóa
+exports.reinitAdmin = functions.https.onRequest(async (req, res) => {
+  try {
+    await ensureAdminAccount();
+    res.status(200).send('✅ Đã kiểm tra và tạo lại admin nếu bị xóa.');
+  } catch (error) {
+    console.error('❌ Lỗi khi chạy reinitAdmin:', error);
+    res.status(500).send('❌ Lỗi khi chạy reinitAdmin.');
+  }
+});
+//https://us-central1-haiau-lab-manager.cloudfunctions.net/reinitAdmin
 
 // ✅ 1. ĐĂNG KÝ USER (chỉ được tạo tài khoản nhân viên)
 exports.registerUser = functions.https.onCall(async (data, context) => {
