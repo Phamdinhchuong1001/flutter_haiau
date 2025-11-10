@@ -17,11 +17,20 @@ class SampleScreen extends StatefulWidget {
 }
 
 class _SampleScreenState extends State<SampleScreen> {
-  String searchQuery = '';
-  String filterField = 'Tất cả';
   final AuthService _auth = AuthService();
   final User? currentUser = FirebaseAuth.instance.currentUser;
 
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMoreData = true;
+  List<DocumentSnapshot> _sampleDocs = [];
+  DocumentSnapshot? _lastDocument;
+  final int _pageSize = 10;
+
+  final ScrollController _scrollController = ScrollController();
+
+  String searchQuery = '';
+  String filterField = 'Tất cả';
   final List<String> filterOptions = [
     'Tất cả',
     'Mã mẫu',
@@ -29,6 +38,128 @@ class _SampleScreenState extends State<SampleScreen> {
     'Loại mẫu',
     'Trạng thái',
   ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchInitialSamples();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_hasMoreData || _isLoadingMore) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 100) {
+      _fetchMoreSamples();
+    }
+  }
+
+  Future<void> _fetchInitialSamples() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      Query query = _buildBaseQuery();
+      final querySnapshot = await query.limit(_pageSize).get();
+      if (mounted) {
+        setState(() {
+          _sampleDocs = querySnapshot.docs;
+          if (querySnapshot.docs.isNotEmpty) {
+            _lastDocument = querySnapshot.docs.last;
+          }
+          _hasMoreData = querySnapshot.docs.length == _pageSize;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải dữ liệu: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _fetchMoreSamples() async {
+    setState(() {
+      _isLoadingMore = true;
+    });
+    try {
+      Query query = _buildBaseQuery();
+      if (_lastDocument != null) {
+        query = query.startAfterDocument(_lastDocument!);
+      }
+
+      final querySnapshot = await query.limit(_pageSize).get();
+
+      if (mounted) {
+        setState(() {
+          if (querySnapshot.docs.isNotEmpty) {
+            _lastDocument = querySnapshot.docs.last;
+          }
+          _sampleDocs.addAll(querySnapshot.docs);
+          _hasMoreData = querySnapshot.docs.length == _pageSize;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải thêm dữ liệu: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Query _buildBaseQuery() {
+    Query query = FirebaseFirestore.instance
+        .collection('samples')
+        .orderBy('createdAt', descending: true);
+
+    if (searchQuery.isNotEmpty && filterField != 'Tất cả') {
+      String fieldToQuery;
+      switch (filterField) {
+        case 'Mã mẫu':
+          fieldToQuery = 'sampleCode';
+          break;
+        case 'Khách hàng':
+          fieldToQuery = 'customerName';
+          break;
+        case 'Loại mẫu':
+          fieldToQuery = 'sampleType';
+          break;
+        case 'Trạng thái':
+          fieldToQuery = 'status';
+          break;
+        default:
+          fieldToQuery = 'sampleCode';
+      }
+
+      query = FirebaseFirestore.instance
+          .collection('samples')
+          .orderBy(fieldToQuery)
+          .where(fieldToQuery, isGreaterThanOrEqualTo: searchQuery)
+          .where(fieldToQuery, isLessThanOrEqualTo: '$searchQuery\uf8ff');
+    }
+
+    return query;
+  }
+
+  void _onSearchChanged() {
+    _sampleDocs = [];
+    _lastDocument = null;
+    _hasMoreData = true;
+    _fetchInitialSamples();
+  }
 
   Color _getStatusColor(SampleStatus status) {
     switch (status) {
@@ -66,11 +197,9 @@ class _SampleScreenState extends State<SampleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Sử dụng StreamBuilder để lấy UserModel (chứa Role)
     return StreamBuilder<UserModel?>(
-      stream: _auth.streamUser(currentUser?.uid), // Lắng nghe UserModel
+      stream: _auth.streamUser(currentUser?.uid),
       builder: (context, snapshot) {
-        // Lấy vai trò (role)
         final userRole = snapshot.data?.role ?? 'nhanvien';
         final bool isAdmin = (userRole == 'admin');
 
@@ -135,8 +264,8 @@ class _SampleScreenState extends State<SampleScreen> {
                           onChanged: (value) {
                             setState(() {
                               filterField = value!;
-                              searchQuery = '';
                             });
+                            _onSearchChanged();
                             FocusScope.of(context).unfocus();
                           },
                         ),
@@ -182,9 +311,10 @@ class _SampleScreenState extends State<SampleScreen> {
                           ),
                           onChanged: (value) {
                             setState(() {
-                              searchQuery = value.toLowerCase();
+                              searchQuery = value;
                             });
                           },
+                          onSubmitted: (value) => _onSearchChanged(),
                         ),
                       ),
                     ),
@@ -193,124 +323,83 @@ class _SampleScreenState extends State<SampleScreen> {
               ),
 
               Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('samples')
-                      .orderBy('createdAt', descending: true)
-                      .snapshots(),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _sampleDocs.isEmpty
+                    ? const Center(child: Text('Không tìm thấy mẫu nào.'))
+                    : ListView.builder(
+                        controller: _scrollController,
+                        itemCount: _sampleDocs.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == _sampleDocs.length) {
+                            if (_isLoadingMore) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
+                            if (!_hasMoreData) {
+                              return const Center(
+                                child: Padding(padding: EdgeInsets.all(16.0)),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          }
 
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snapshot.hasError) {
-                      print('Firestore Stream Error: ${snapshot.error}');
-                      return const Center(
-                        child: Text('Lỗi tải dữ liệu từ Firestore.'),
-                      );
-                    }
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const Center(
-                        child: Text('Chưa có mẫu nào được thêm.'),
-                      );
-                    }
-
-                    final List<SampleModel> allSamples = snapshot.data!.docs
-                        .map((doc) {
-                          return SampleModel.fromMap(
+                          final doc = _sampleDocs[index];
+                          final sample = SampleModel.fromMap(
                             doc.data() as Map<String, dynamic>,
                             doc.id,
                           );
-                        })
-                        .toList();
 
-                    final filteredSamples = allSamples.where((sample) {
-                      final query = searchQuery.toLowerCase().trim();
-                      if (query.isEmpty) return true;
-
-                      final sampleCode = sample.sampleCode.toLowerCase();
-                      final customerName = sample.customerName.toLowerCase();
-                      final sampleType = sample.sampleType.toLowerCase();
-                      final status = statusToString(
-                        sample.status,
-                      ).toLowerCase();
-
-                      switch (filterField) {
-                        case 'Mã mẫu':
-                          return sampleCode.contains(query);
-                        case 'Khách hàng':
-                          return customerName.contains(query);
-                        case 'Loại mẫu':
-                          return sampleType.contains(query);
-                        case 'Trạng thái':
-                          return status.contains(query);
-                        default:
-                          return sampleCode.contains(query) ||
-                              customerName.contains(query) ||
-                              sampleType.contains(query) ||
-                              status.contains(query);
-                      }
-                    }).toList();
-
-                    if (filteredSamples.isEmpty) {
-                      return const Center(
-                        child: Text('Không tìm thấy mẫu nào phù hợp.'),
-                      );
-                    }
-
-                    return ListView.builder(
-                      itemCount: filteredSamples.length,
-                      itemBuilder: (context, index) {
-                        final sample = filteredSamples[index];
-
-                        return Card(
-                          elevation: 1.5,
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: _getStatusColor(sample.status),
-                              child: const Icon(
-                                Icons.science,
-                                color: Colors.white,
-                              ),
+                          return Card(
+                            elevation: 1.5,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
                             ),
-                            title: Text(
-                              'Mã mẫu: ${sample.sampleCode}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 2),
-                                Text('Khách hàng: ${sample.customerName}'),
-                                Text('Loại: ${sample.sampleType}'),
-                                Text('Ngày nhận: ${sample.receivedDate}'),
-                              ],
-                            ),
-                            trailing: _buildStatusTag(sample.status),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      SampleDetailScreen(sample: sample),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: _getStatusColor(sample.status),
+                                child: const Icon(
+                                  Icons.science,
+                                  color: Colors.white,
                                 ),
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                              ),
+                              title: Text(
+                                'Mã mẫu: ${sample.sampleCode}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 2),
+                                  Text('Khách hàng: ${sample.customerName}'),
+                                  Text('Loại: ${sample.sampleType}'),
+                                  Text('Ngày nhận: ${sample.receivedDate}'),
+                                ],
+                              ),
+                              trailing: _buildStatusTag(sample.status),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        SampleDetailScreen(sample: sample),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
               ),
             ],
           ),
