@@ -25,6 +25,7 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
   final Color primaryColor = const Color(0xFF005BFF);
 
   final List<SampleStatus> statusOptions = SampleStatus.values;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -44,6 +45,9 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
       );
       return;
     }
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final data = {
@@ -55,9 +59,6 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
         'updateSampleStatus',
       );
       await callable.call(data);
-      setState(() {
-        _currentSample = _currentSample.copyWith(status: _selectedStatus);
-      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -68,6 +69,7 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
             backgroundColor: Colors.green,
           ),
         );
+        Navigator.pop(context, true);
       }
     } on FirebaseFunctionsException catch (e) {
       if (mounted) {
@@ -77,6 +79,12 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -107,6 +115,9 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
     );
 
     if (confirm == true) {
+      setState(() {
+        _isLoading = true;
+      });
       try {
         final data = {'id': _currentSample.id};
 
@@ -120,7 +131,7 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       } on FirebaseFunctionsException catch (e) {
         if (mounted) {
@@ -132,6 +143,12 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
               backgroundColor: Colors.red,
             ),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
         }
       }
     }
@@ -312,12 +329,23 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
                             ),
                             minimumSize: const Size(double.infinity, 48),
                           ),
-                          icon: const Icon(Icons.save),
+                          icon: _isLoading
+                              ? Container(
+                                  width: 24,
+                                  height: 24,
+                                  padding: const EdgeInsets.all(2.0),
+                                  child: const CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 3,
+                                  ),
+                                )
+                              : const Icon(Icons.save),
+
                           label: const Text(
                             "Cập nhật trạng thái",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          onPressed: updateSampleStatus,
+                          onPressed: _isLoading ? null : updateSampleStatus,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -336,7 +364,7 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
                             "Xóa mẫu",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          onPressed: confirmDeleteSample,
+                          onPressed: _isLoading ? null : confirmDeleteSample,
                         ),
                       ),
                     ],
