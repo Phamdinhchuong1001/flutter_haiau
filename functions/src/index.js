@@ -1,123 +1,160 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
-try { admin.initializeApp(); } catch(e) { console.error('Firebase Admin Init failed:', e); }
-
+admin.initializeApp(); 
 const db = admin.firestore();
-const SAMPLES_COLLECTION = 'samples';
+const SAMPLES_COLLECTION = 'samples'; 
+const COUNTER_DOC = 'counters/sample'; 
 
-exports.addSample = functions.https.onCall(async (data, context) => {
+const checkRole = (context, requiredRole) => {
     if (!context.auth) {
-        throw new functions.https.HttpsError(
-            'unauthenticated',
-            'Chỉ nhân viên đã đăng nhập mới được thêm mẫu.'
-        );
+        throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
     }
     
-    const { sampleCode, customerName, sampleType, receivedDate, status } = data;
-
-    if (!sampleCode || !customerName || !sampleType || !receivedDate || !status) {
+    const userRole = context.auth.token.role || 'nhanvien'; 
+    
+    if (userRole !== requiredRole) {
         throw new functions.https.HttpsError(
-            'invalid-argument',
-            'Thiếu thông tin bắt buộc'
+            'permission-denied', 
+            `Bạn không có quyền '${requiredRole}' để thực hiện thao tác này.`
         );
+    }
+    return userRole;
+};
+
+exports.getNewSampleCode = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
     }
 
     try {
-        const newSample = {
-            sampleCode: sampleCode.trim(),
-            customerName: customerName.trim(),
-            sampleType: sampleType.trim(),
-            receivedDate: receivedDate.trim(),
-            status: status.trim(), 
-            createdAt: admin.firestore.Timestamp.now(),
-            updatedAt: admin.firestore.Timestamp.now(),
-        };
+        const counterRef = db.doc(COUNTER_DOC);
+        const counterDoc = await counterRef.get();
 
-        const docRef = await db.collection(SAMPLES_COLLECTION).add(newSample);
+        if (!counterDoc.exists) {
+            throw new functions.https.HttpsError('failed-precondition', 'Lỗi cấu hình: Tài liệu Counter không tồn tại. Vui lòng tạo counters/sample.');
+        }
 
-        return {
-            success: true,
-            message: 'Thêm mẫu thành công!',
-            id: docRef.id,
-        };
+        const currentSequence = counterDoc.data().sequence || 0;
+        const nextSequence = currentSequence + 1;
+        
+        const year = new Date().getFullYear();
+        const paddedSequence = String(nextSequence).padStart(5, '0');
+        const newSampleCode = `HA-${year}-${paddedSequence}`;
+        
+        return { sampleCode: newSampleCode, nextSequence: nextSequence };
+
+    } catch (error) {
+        console.error("Lỗi khi tạo Mã mẫu:", error);
+        if (error.code === 'failed-precondition') {
+             throw error;
+        }
+        throw new functions.https.HttpsError('internal', `Lỗi server khi tạo mã: ${error.message}`);
+    }
+});
+
+exports.addSample = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+    }
+    
+    const { sampleCode, customerName, sampleType, receivedDate, status, nextSequence } = data; 
+
+    if (!sampleCode) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Mã mẫu.'); 
+    if (!customerName) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Tên khách hàng.');
+    if (!sampleType) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Loại mẫu.');
+    if (!receivedDate) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Ngày nhận.');
+    if (!status) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Trạng thái.');
+    if (!nextSequence || typeof nextSequence !== 'number') throw new functions.https.HttpsError('internal', 'Lỗi dữ liệu: Thiếu số thứ tự (nextSequence) để cập nhật counter.');
+
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const counterRef = db.doc(COUNTER_DOC);
+            
+            transaction.update(counterRef, { sequence: nextSequence }); // <--- CẬP NHẬT COUNTER
+            
+            const newSample = {
+                sampleCode: sampleCode.trim(),
+                customerName: customerName.trim(),
+                sampleType: sampleType.trim(),
+                receivedDate: receivedDate.trim(),
+                status: status.trim(), 
+                createdAt: admin.firestore.Timestamp.now(),
+                updatedAt: admin.firestore.Timestamp.now(),
+                createdBy: context.auth.uid, 
+            };
+
+            const docRef = db.collection(SAMPLES_COLLECTION).doc();
+            transaction.set(docRef, newSample);
+        });
+
+        return { success: true, message: 'Thêm mẫu thành công!', sampleCode: sampleCode };
+        
     } catch (error) {
         console.error("Lỗi khi thêm mẫu:", error);
-        throw new functions.https.HttpsError(
-            'internal',
-            'Lỗi server khi tạo mẫu.'
-        );
+        throw new functions.https.HttpsError('internal', `Lỗi server khi tạo mẫu: ${error.message}`);
     }
 });
 
 exports.updateSampleStatus = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
-        throw new functions.https.HttpsError(
-            'unauthenticated',
-            'Chỉ nhân viên đã đăng nhập mới được cập nhật trạng thái.'
-        );
+        throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
     }
     
     const { id, status } = data;
-
     if (!id || !status) {
-        throw new functions.https.HttpsError(
-            'invalid-argument',
-            'Thiếu ID mẫu hoặc trạng thái mới.'
-        );
+        throw new functions.https.HttpsError('invalid-argument', 'Thiếu ID mẫu hoặc trạng thái mới.');
     }
 
     try {
         const sampleRef = db.collection(SAMPLES_COLLECTION).doc(id);
         
+        const doc = await sampleRef.get();
+        if (!doc.exists) {
+            throw new functions.https.HttpsError('not-found', 'Tài liệu mẫu cần cập nhật không tồn tại.');
+        }
+
         await sampleRef.update({
             status: status.trim(),
             updatedAt: admin.firestore.Timestamp.now(),
         });
 
-        return {
-            success: true,
-            message: `Cập nhật trạng thái mẫu ${id} thành công thành: ${status}`,
-        };
+        return { success: true, message: `Cập nhật trạng thái thành công!` };
     } catch (error) {
         console.error("Lỗi khi cập nhật trạng thái mẫu:", error);
-        throw new functions.https.HttpsError(
-            'internal',
-            'Lỗi server khi cập nhật trạng thái. (Có thể ID mẫu không tồn tại)'
-        );
+        if (error.code === 'not-found') {
+             throw error; 
+        }
+        throw new functions.https.HttpsError('internal', `Lỗi server khi cập nhật: ${error.message}`);
     }
 });
 
 exports.deleteSample = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError(
-            'unauthenticated',
-            'Chỉ nhân viên đã đăng nhập mới được xóa mẫu.'
-        );
-    }
-    
-    const { id } = data;
+    checkRole(context, 'admin'); 
 
+    const { id } = data;
     if (!id) {
-        throw new functions.https.HttpsError(
-            'invalid-argument',
-            'Thiếu ID mẫu cần xóa.'
-        );
+        throw new functions.https.HttpsError('invalid-argument', 'Thiếu ID mẫu cần xóa.');
     }
 
     try {
-        await db.collection(SAMPLES_COLLECTION).doc(id).delete();
+        const sampleRef = db.collection(SAMPLES_COLLECTION).doc(id);
+        
+        const doc = await sampleRef.get();
+        if (!doc.exists) {
+            throw new functions.https.HttpsError('not-found', 'Tài liệu mẫu cần xóa không tồn tại.');
+        }
 
-        return {
-            success: true,
-            message: `Xóa mẫu ${id} thành công!`,
-        };
+        await sampleRef.delete();
+
+        return { success: true, message: `Xóa mẫu ${id} thành công!` };
     } catch (error) {
         console.error("Lỗi khi xóa mẫu:", error);
-        throw new functions.https.HttpsError(
-            'internal',
-            'Lỗi server khi xóa mẫu.'
-        );
+        if (error.code === 'not-found' || error.code === 'permission-denied') {
+             throw error; 
+        }
+        throw new functions.https.HttpsError('internal', `Lỗi server khi xóa: ${error.message}`);
     }
 });
 // ======================================================

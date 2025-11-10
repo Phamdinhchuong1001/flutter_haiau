@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_haiau/models/sample_model.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_haiau/services/auth_service.dart';
+import 'package:flutter_haiau/models/user_model.dart';
 
 final FirebaseFunctions functions = FirebaseFunctions.instance;
 
@@ -17,6 +20,8 @@ class SampleDetailScreen extends StatefulWidget {
 class _SampleDetailScreenState extends State<SampleDetailScreen> {
   late SampleModel _currentSample;
   late SampleStatus _selectedStatus;
+  final AuthService _auth = AuthService();
+  final User? currentUser = FirebaseAuth.instance.currentUser;
   final Color primaryColor = const Color(0xFF005BFF);
 
   final List<SampleStatus> statusOptions = SampleStatus.values;
@@ -182,155 +187,167 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        title: const Text(
-          "Chi tiết Mẫu",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: primaryColor.withOpacity(0.2)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.science, size: 40, color: Color(0xFF2196F3)),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _currentSample.sampleCode,
-                          style: Theme.of(context).textTheme.titleLarge!
-                              .copyWith(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                                color: Colors.black87,
-                              ),
-                        ),
-                        Text(
-                          statusToString(_currentSample.status),
-                          style: TextStyle(
-                            color: _getStatusColor(_currentSample.status),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+    return StreamBuilder<UserModel?>(
+      stream: _auth.streamUser(currentUser?.uid),
+      builder: (context, snapshot) {
+        final userRole = snapshot.data?.role ?? 'nhanvien';
+        final bool isAdmin = (userRole == 'admin');
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            centerTitle: true,
+            elevation: 0,
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            title: const Text(
+              "Chi tiết Mẫu",
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 20),
-
-            _buildInfoCard("Tên Khách hàng", _currentSample.customerName),
-            _buildInfoCard("Loại Mẫu", _currentSample.sampleType),
-            _buildInfoCard("Ngày Nhận", _currentSample.receivedDate),
-            _buildInfoCard(
-              "Thời gian tạo",
-              _currentSample.createdAt.toDate().toString(),
-            ),
-            const Divider(height: 30),
-
-            Text(
-              "Cập nhật Trạng thái",
-              style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<SampleStatus>(
-              value: _selectedStatus,
-              decoration: InputDecoration(
-                prefixIcon: Icon(
-                  Icons.cached,
-                  color: _getStatusColor(_selectedStatus),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 16,
-                ),
-              ),
-              items: statusOptions.map((status) {
-                return DropdownMenuItem<SampleStatus>(
-                  value: status,
-                  child: Text(statusToString(status)),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedStatus = value!;
-                });
-              },
-            ),
-
-            const SizedBox(height: 20),
-
-            Row(
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: primaryColor.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.science,
+                        size: 40,
+                        color: Color(0xFF2196F3),
                       ),
-                      minimumSize: const Size(double.infinity, 48),
-                    ),
-                    icon: const Icon(Icons.save),
-                    label: const Text(
-                      "Cập nhật trạng thái",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    onPressed: updateSampleStatus,
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _currentSample.sampleCode,
+                              style: Theme.of(context).textTheme.titleLarge!
+                                  .copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                    color: Colors.black87,
+                                  ),
+                            ),
+                            Text(
+                              statusToString(_currentSample.status),
+                              style: TextStyle(
+                                color: _getStatusColor(_currentSample.status),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      minimumSize: const Size(double.infinity, 48),
-                    ),
-                    icon: const Icon(Icons.delete),
-                    label: const Text(
-                      "Xóa mẫu",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    onPressed: confirmDeleteSample,
-                  ),
+                const SizedBox(height: 20),
+
+                _buildInfoCard("Tên Khách hàng", _currentSample.customerName),
+                _buildInfoCard("Loại Mẫu", _currentSample.sampleType),
+                _buildInfoCard("Ngày Nhận", _currentSample.receivedDate),
+                _buildInfoCard(
+                  "Thời gian tạo",
+                  _currentSample.createdAt.toDate().toString(),
                 ),
+                const Divider(height: 30),
+                if (isAdmin) ...[
+                  Text(
+                    "Cập nhật Trạng thái",
+                    style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<SampleStatus>(
+                    value: _selectedStatus,
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(
+                        Icons.cached,
+                        color: _getStatusColor(_selectedStatus),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
+                    ),
+                    items: statusOptions.map((status) {
+                      return DropdownMenuItem<SampleStatus>(
+                        value: status,
+                        child: Text(statusToString(status)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedStatus = value!;
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            minimumSize: const Size(double.infinity, 48),
+                          ),
+                          icon: const Icon(Icons.save),
+                          label: const Text(
+                            "Cập nhật trạng thái",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: updateSampleStatus,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            minimumSize: const Size(double.infinity, 48),
+                          ),
+                          icon: const Icon(Icons.delete),
+                          label: const Text(
+                            "Xóa mẫu",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: confirmDeleteSample,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ],
             ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
