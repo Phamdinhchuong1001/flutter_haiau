@@ -6,6 +6,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_haiau/services/auth_service.dart';
 import 'package:flutter_haiau/models/user_model.dart';
+import 'dart:async';
 
 final FirebaseFunctions functions = FirebaseFunctions.instance;
 
@@ -28,6 +29,7 @@ class _SampleScreenState extends State<SampleScreen> {
   final int _pageSize = 10;
 
   final ScrollController _scrollController = ScrollController();
+  Timer? _debounce;
 
   String searchQuery = '';
   String filterField = 'Tất cả';
@@ -49,6 +51,7 @@ class _SampleScreenState extends State<SampleScreen> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -317,8 +320,17 @@ class _SampleScreenState extends State<SampleScreen> {
                             setState(() {
                               searchQuery = value;
                             });
+                            if (_debounce?.isActive ?? false)
+                              _debounce!.cancel();
+                            _debounce = Timer(
+                              const Duration(milliseconds: 500),
+                              _onSearchChanged,
+                            );
                           },
-                          onSubmitted: (value) => _onSearchChanged(),
+                          onSubmitted: (value) => {
+                            _debounce?.cancel(),
+                            _onSearchChanged(),
+                          },
                         ),
                       ),
                     ),

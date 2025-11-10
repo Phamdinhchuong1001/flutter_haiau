@@ -7,8 +7,8 @@ SampleStatus statusFromString(String status) {
     case 'Đang phân tích':
       return SampleStatus.analyzing;
     case 'Hoàn thành':
-    case 'Đã trả kết quả':
       return SampleStatus.completed;
+    case 'Đã trả kết quả':
     case 'Trả kết quả':
       return SampleStatus.resultReturned;
     default:
@@ -23,7 +23,7 @@ String statusToString(SampleStatus status) {
     case SampleStatus.completed:
       return 'Hoàn thành';
     case SampleStatus.resultReturned:
-      return 'Trả kết quả';
+      return 'Đã trả kết quả';
   }
 }
 
