@@ -203,7 +203,7 @@ async function ensureAdminAccount() {
 }
 
 // ✅ Gọi hàm khi khởi chạy (tự đảm bảo admin luôn tồn tại)
-ensureAdminAccount();
+//ensureAdminAccount();
 
 // ✅ API thủ công để tạo lại admin nếu bị xóa
 exports.reinitAdmin = functions.https.onRequest(async (req, res) => {
@@ -319,3 +319,221 @@ exports.deleteUser = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
+
+// ======================================================
+// =================== DEVICE MANAGEMENT =================
+// ======================================================
+
+const DEVICES_COLLECTION = 'devices';
+const DEVICE_COUNTER_DOC = 'counters/device';
+
+// Check role (dùng cho delete)
+const checkDeviceRole = (context, requiredRole) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+  }
+  const userRole = context.auth.token.role || 'nhanvien';
+  if (userRole !== requiredRole) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      `Bạn không có quyền '${requiredRole}' để thực hiện thao tác này.`
+    );
+  }
+  return userRole;
+};
+
+// 1️⃣ Lấy danh sách thiết bị (phân trang)
+exports.getDevices = functions
+  .region('asia-southeast1')
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+    }
+
+    const pageSize = data.pageSize || 10;
+    const lastCreatedAt = data.lastCreatedAt || null;
+
+    try {
+      let query = db
+        .collection(DEVICES_COLLECTION)
+        .orderBy('createdAt', 'desc')
+        .limit(pageSize);
+
+      if (lastCreatedAt) {
+        query = query.startAfter(lastCreatedAt);
+      }
+
+      const snapshot = await query.get();
+
+      const devices = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      const newLast =
+        snapshot.docs.length > 0
+          ? snapshot.docs[snapshot.docs.length - 1].data().createdAt
+          : null;
+
+      return { devices, lastCreatedAt: newLast };
+    } catch (error) {
+      console.error('getDevices error:', error);
+      throw new functions.https.HttpsError('internal', error.message);
+    }
+  });
+
+// 2️⃣ Tạo mã thiết bị mới
+exports.getNewDeviceCode = functions
+  .region('asia-southeast1')
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+    }
+
+    const counterRef = db.doc(DEVICE_COUNTER_DOC);
+    const counterSnap = await counterRef.get();
+
+    if (!counterSnap.exists) {
+      console.error('DEVICE COUNTER NOT FOUND at', DEVICE_COUNTER_DOC);
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        `Tài liệu counter không tồn tại tại path "${DEVICE_COUNTER_DOC}".`
+      );
+    }
+
+    const currentSequence = counterSnap.data().sequence || 0;
+    const nextSequence = currentSequence + 1;
+
+    const year = new Date().getFullYear();
+    const paddedSequence = String(nextSequence).padStart(5, '0');
+    const newDeviceCode = `DV-${year}-${paddedSequence}`;
+
+    // Không update sequence ở đây, chỉ trả về cho client.
+    return { deviceCode: newDeviceCode, nextSequence };
+  });
+
+// 3️⃣ Thêm thiết bị
+exports.addDevice = functions
+  .region('asia-southeast1')
+  .https.onCall(async (data, context) => {
+    if (!context.auth)
+        throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+
+    const {
+        deviceCode,
+        name,
+        model,
+        manufacturer,
+        status,
+        purchaseDate,
+        calibrationCycle,
+        nextSequence
+    } = data;
+
+    if (!deviceCode) throw new functions.https.HttpsError('invalid-argument', 'Thiếu mã thiết bị');
+    if (!name) throw new functions.https.HttpsError('invalid-argument', 'Thiếu tên thiết bị');
+    if (!model) throw new functions.https.HttpsError('invalid-argument', 'Thiếu model thiết bị');
+    if (!manufacturer) throw new functions.https.HttpsError('invalid-argument', 'Thiếu hãng sản xuất');
+    if (!status) throw new functions.https.HttpsError('invalid-argument', 'Thiếu trạng thái');
+    if (!calibrationCycle) throw new functions.https.HttpsError('invalid-argument', 'Thiếu chu kỳ hiệu chuẩn');
+
+    if (!nextSequence || typeof nextSequence !== 'number')
+        throw new functions.https.HttpsError('invalid-argument', 'Thiếu nextSequence hợp lệ');
+
+    let parsedPurchaseDate = null;
+    try {
+        const [d, m, y] = purchaseDate.split("/");
+        parsedPurchaseDate = admin.firestore.Timestamp.fromDate(new Date(`${y}-${m}-${d}`));
+    } catch (e) {
+        throw new functions.https.HttpsError('invalid-argument', 'Ngày mua không đúng định dạng dd/MM/yyyy');
+    }
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const counterRef = db.doc("counters/device");
+            transaction.update(counterRef, { sequence: nextSequence });
+
+            const deviceData = {
+                deviceCode,
+                name,
+                model,
+                manufacturer,
+                status,
+                calibrationCycle,
+                purchaseDate: parsedPurchaseDate,
+                createdAt: admin.firestore.Timestamp.now(),
+                updatedAt: admin.firestore.Timestamp.now(),
+                createdBy: context.auth.uid
+            };
+
+            const newDoc = db.collection("devices").doc();
+            transaction.set(newDoc, deviceData);
+        });
+
+        return { success: true };
+    }
+    catch (error) {
+        console.error("Add Device Error:", error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+
+
+// 4️⃣ Cập nhật trạng thái
+exports.updateDeviceStatus = functions
+  .region('asia-southeast1')
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+    }
+
+    const { id, status } = data;
+    if (!id || !status) {
+      throw new functions.https.HttpsError('invalid-argument', 'Thiếu ID hoặc trạng thái mới.');
+    }
+
+    try {
+      const deviceRef = db.collection(DEVICES_COLLECTION).doc(id);
+      const docSnap = await deviceRef.get();
+      if (!docSnap.exists) {
+        throw new functions.https.HttpsError('not-found', 'Thiết bị cần cập nhật không tồn tại.');
+      }
+
+      await deviceRef.update({
+        status: status.trim(),
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+
+      return { success: true, message: 'Cập nhật trạng thái thiết bị thành công!' };
+    } catch (error) {
+      console.error('updateDeviceStatus error:', error);
+      throw new functions.https.HttpsError('internal', `Lỗi server khi cập nhật: ${error.message}`);
+    }
+  });
+
+// 5️⃣ Xóa thiết bị (chỉ admin)
+exports.deleteDevice = functions
+  .region('asia-southeast1')
+  .https.onCall(async (data, context) => {
+    checkDeviceRole(context, 'admin');
+
+    const { id } = data;
+    if (!id) {
+      throw new functions.https.HttpsError('invalid-argument', 'Thiếu ID thiết bị cần xóa.');
+    }
+
+    try {
+      const deviceRef = db.collection(DEVICES_COLLECTION).doc(id);
+      const docSnap = await deviceRef.get();
+      if (!docSnap.exists) {
+        throw new functions.https.HttpsError('not-found', 'Thiết bị cần xóa không tồn tại.');
+      }
+
+      await deviceRef.delete();
+      return { success: true, message: `Xóa thiết bị ${id} thành công!` };
+    } catch (error) {
+      console.error('deleteDevice error:', error);
+      throw new functions.https.HttpsError('internal', `Lỗi server khi xóa: ${error.message}`);
+    }
+  });

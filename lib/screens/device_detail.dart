@@ -1,107 +1,123 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'package:flutter_haiau/models/device_model.dart';
+import 'package:flutter_haiau/services/auth_service.dart';
+import 'package:flutter_haiau/models/user_model.dart';
+
+final FirebaseFunctions functions = FirebaseFunctions.instance;
 
 class DeviceDetailScreen extends StatefulWidget {
-  final String deviceId;
-  final Map<String, dynamic> deviceData;
+  final DeviceModel device;
 
-  const DeviceDetailScreen({
-    super.key,
-    required this.deviceId,
-    required this.deviceData,
-  });
+  const DeviceDetailScreen({super.key, required this.device});
 
   @override
   State<DeviceDetailScreen> createState() => _DeviceDetailScreenState();
 }
 
 class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
-  final _formKey = GlobalKey<FormState>();
+  late DeviceModel _currentDevice;
+  late DeviceStatus _selectedStatus;
 
-  late TextEditingController nameController;
-  late TextEditingController modelController;
-  late TextEditingController manufacturerController;
-  late TextEditingController purchaseDateController;
-  late TextEditingController calibrationCycleController;
-
-  late String selectedStatus;
+  final AuthService _auth = AuthService();
+  final User? currentUser = FirebaseAuth.instance.currentUser;
 
   final Color primaryColor = const Color(0xFF005BFF);
 
-  final List<String> statusOptions = [
-    'Đang hoạt động',
-    'Hư hỏng',
-    'Đang hiệu chuẩn',
-    'Ngừng sử dụng',
-  ];
+  final List<DeviceStatus> statusOptions = DeviceStatus.values;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    nameController = TextEditingController(text: widget.deviceData['name']);
-    modelController = TextEditingController(text: widget.deviceData['model']);
-    manufacturerController = TextEditingController(
-      text: widget.deviceData['manufacturer'],
-    );
-    purchaseDateController = TextEditingController(
-      text: widget.deviceData['purchaseDate'],
-    );
-    calibrationCycleController = TextEditingController(
-      text: widget.deviceData['calibrationCycle'],
-    );
-    selectedStatus = statusOptions.contains(widget.deviceData['status'])
-        ? widget.deviceData['status']
-        : 'Đang hoạt động';
+    _currentDevice = widget.device;
+    _selectedStatus = widget.device.status;
   }
 
-  bool _hasChanged() {
-    return nameController.text != widget.deviceData['name'] ||
-        modelController.text != widget.deviceData['model'] ||
-        manufacturerController.text != widget.deviceData['manufacturer'] ||
-        purchaseDateController.text != widget.deviceData['purchaseDate'] ||
-        calibrationCycleController.text !=
-            widget.deviceData['calibrationCycle'] ||
-        selectedStatus != widget.deviceData['status'];
+  bool _hasStatusChanged() {
+    return _selectedStatus != widget.device.status;
   }
 
-  Future<void> updateDevice() async {
-    if (!_formKey.currentState!.validate()) return;
+  Color _getStatusColor(DeviceStatus status) {
+    switch (status) {
+      case DeviceStatus.active:
+        return Colors.green.shade700;
+      case DeviceStatus.broken:
+        return Colors.red.shade700;
+      case DeviceStatus.calibrating:
+        return Colors.orange.shade700;
+      case DeviceStatus.outOfService:
+        return Colors.grey.shade700;
+    }
+  }
 
-    if (!_hasChanged()) {
+  Future<void> _updateDeviceStatus() async {
+    if (!_hasStatusChanged()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng thay đổi thông tin trước khi cập nhật!'),
-        ),
+        const SnackBar(content: Text('Trạng thái chưa thay đổi!')),
       );
       return;
     }
 
-    await FirebaseFirestore.instance
-        .collection('devices')
-        .doc(widget.deviceId)
-        .update({
-          'name': nameController.text.trim(),
-          'model': modelController.text.trim(),
-          'manufacturer': manufacturerController.text.trim(),
-          'purchaseDate': purchaseDateController.text.trim(),
-          'calibrationCycle': calibrationCycleController.text.trim(),
-          'status': selectedStatus,
+    setState(() => _isLoading = true);
+
+    try {
+      final data = {
+        'id': _currentDevice.id,
+        'status': statusToString(_selectedStatus),
+      };
+
+      final HttpsCallable callable = functions.httpsCallable(
+        'updateDeviceStatus',
+      );
+
+      await callable.call(data);
+
+      if (mounted) {
+        setState(() {
+          _currentDevice = _currentDevice.copyWith(status: _selectedStatus);
         });
 
-    if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Cập nhật trạng thái thành công: ${statusToString(_selectedStatus)}',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context, true);
+      }
+    } on FirebaseFunctionsException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cập nhật thiết bị thành công!')),
+        SnackBar(
+          content: Text('Lỗi cập nhật trạng thái: ${e.message}'),
+          backgroundColor: Colors.red,
+        ),
       );
-      Navigator.pop(context);
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lỗi kết nối hoặc server.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> confirmDeleteDevice() async {
+  Future<void> _confirmDeleteDevice() async {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Xác nhận xóa"),
-        content: const Text("Bạn có chắc muốn xóa thiết bị này?"),
+        content: Text(
+          "Bạn có chắc muốn xóa thiết bị ${_currentDevice.deviceCode} - ${_currentDevice.name}?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -119,239 +135,244 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       ),
     );
 
-    if (confirm == true) {
-      await FirebaseFirestore.instance
-          .collection('devices')
-          .doc(widget.deviceId)
-          .delete();
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final data = {'id': _currentDevice.id};
+      final HttpsCallable callable = functions.httpsCallable('deleteDevice');
+
+      await callable.call(data);
+
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Đã xóa thiết bị!')));
-        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã xóa thiết bị!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true);
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi xóa thiết bị: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _selectPurchaseDate() async {
-    FocusScope.of(context).requestFocus(FocusNode());
-    DateTime? pickedDate = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (pickedDate != null) {
-      setState(() {
-        purchaseDateController.text =
-            "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
-      });
-    }
-  }
-
-  InputDecoration _inputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      prefixIcon: Icon(icon, color: const Color(0xFF2196F3)),
-      labelText: label,
-      labelStyle: const TextStyle(
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
+  Widget _buildInfoCard(String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 16, color: Colors.black87),
+            ),
+          ),
+        ],
       ),
-      filled: true,
-      fillColor: Colors.grey[100],
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      contentPadding: const EdgeInsets.symmetric(vertical: 12),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        title: const Text(
-          "Thông tin thiết bị",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            children: [
-              const _DeviceIcon(),
-              Text(
-                nameController.text,
-                style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 22,
+    return StreamBuilder<UserModel?>(
+      stream: _auth.streamUser(currentUser?.uid),
+      builder: (context, snapshot) {
+        final userRole = snapshot.data?.role ?? 'nhanvien';
+        final bool isAdmin = (userRole == 'admin');
+
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            centerTitle: true,
+            elevation: 0,
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            title: const Text(
+              "Chi tiết thiết bị",
+              style: TextStyle(fontWeight: FontWeight.normal),
+            ),
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: primaryColor.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.devices_other,
+                        size: 40,
+                        color: Color(0xFF2196F3),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _currentDevice.deviceCode,
+                              style: Theme.of(context).textTheme.titleLarge!
+                                  .copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                    color: Colors.black87,
+                                  ),
+                            ),
+                            Text(
+                              statusToString(_currentDevice.status),
+                              style: TextStyle(
+                                color: _getStatusColor(_currentDevice.status),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Divider(height: 32),
 
-              // 🔹 Tên thiết bị
-              TextFormField(
-                controller: nameController,
-                decoration: _inputDecoration(
-                  "Tên thiết bị",
-                  Icons.devices_other,
+                const SizedBox(height: 20),
+
+                _buildInfoCard("Tên thiết bị", _currentDevice.name),
+                _buildInfoCard("Model / Serial", _currentDevice.model),
+                _buildInfoCard("Hãng sản xuất", _currentDevice.manufacturer),
+                _buildInfoCard(
+                  "Ngày mua",
+                  _currentDevice.purchaseDate.toDate().toString(),
                 ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Nhập tên thiết bị'
-                    : null,
-              ),
-              const SizedBox(height: 12),
 
-              // 🔹 Model
-              TextFormField(
-                controller: modelController,
-                decoration: _inputDecoration(
-                  "Model / Số serial",
-                  Icons.confirmation_number,
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Nhập model hoặc số serial'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-
-              // 🔹 Hãng sản xuất
-              TextFormField(
-                controller: manufacturerController,
-                decoration: _inputDecoration("Hãng sản xuất", Icons.factory),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Nhập hãng sản xuất'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-
-              // 🔹 Ngày mua
-              TextFormField(
-                controller: purchaseDateController,
-                readOnly: true,
-                decoration: _inputDecoration("Ngày mua", Icons.calendar_today),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Chọn ngày mua'
-                    : null,
-                onTap: _selectPurchaseDate,
-              ),
-              const SizedBox(height: 12),
-
-              // 🔹 Chu kỳ hiệu chuẩn
-              TextFormField(
-                controller: calibrationCycleController,
-                keyboardType: TextInputType.number,
-                decoration: _inputDecoration(
+                _buildInfoCard(
                   "Chu kỳ hiệu chuẩn (tháng)",
-                  Icons.access_time,
+                  _currentDevice.calibrationCycle,
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Nhập chu kỳ hiệu chuẩn';
-                  }
-                  final num? months = num.tryParse(value);
-                  if (months == null || months <= 0) {
-                    return 'Chu kỳ phải là số > 0';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
+                _buildInfoCard(
+                  "Thời gian tạo",
+                  _currentDevice.createdAt.toDate().toString(),
+                ),
 
-              // 🔹 Trạng thái
-              DropdownButtonFormField<String>(
-                value: selectedStatus,
-                decoration: _inputDecoration("Trạng thái", Icons.info_outline),
-                items: statusOptions.map((status) {
-                  return DropdownMenuItem<String>(
-                    value: status,
-                    child: Text(status),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedStatus = value!;
-                  });
-                },
-              ),
+                const Divider(height: 30),
 
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: const StadiumBorder(),
-                        minimumSize: const Size(double.infinity, 48),
-                      ),
-                      icon: const Icon(Icons.save),
-                      label: const Text(
-                        "Cập nhật",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      onPressed: updateDevice,
+                if (isAdmin) ...[
+                  Text(
+                    "Cập nhật Trạng thái",
+                    style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        shape: const StadiumBorder(),
-                        minimumSize: const Size(double.infinity, 48),
+                  const SizedBox(height: 10),
+
+                  DropdownButtonFormField<DeviceStatus>(
+                    value: _selectedStatus,
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(
+                        Icons.cached,
+                        color: _getStatusColor(_selectedStatus),
                       ),
-                      icon: const Icon(Icons.delete),
-                      label: const Text(
-                        "Xóa",
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
-                      onPressed: confirmDeleteDevice,
                     ),
+                    items: statusOptions.map((status) {
+                      return DropdownMenuItem(
+                        value: status,
+                        child: Text(statusToString(status)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedStatus = value!);
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2.5,
+                                  ),
+                                )
+                              : const Icon(Icons.save),
+                          label: const Text("Cập nhật trạng thái"),
+                          onPressed: _isLoading ? null : _updateDeviceStatus,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.delete),
+                          label: const Text("Xóa thiết bị"),
+                          onPressed: _isLoading ? null : _confirmDeleteDevice,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-              const SizedBox(height: 20),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DeviceIcon extends StatelessWidget {
-  const _DeviceIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      margin: const EdgeInsets.symmetric(vertical: 16.0),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: Theme.of(
-            context,
-          ).textTheme.bodyLarge!.color!.withOpacity(0.08),
-        ),
-      ),
-      child: const CircleAvatar(
-        radius: 50,
-        backgroundColor: Color(0xFFE3F2FD),
-        child: Icon(Icons.devices_other, size: 50, color: Color(0xFF2196F3)),
-      ),
+        );
+      },
     );
   }
 }

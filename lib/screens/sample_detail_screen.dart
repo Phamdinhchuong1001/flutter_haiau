@@ -218,7 +218,7 @@ class _SampleDetailScreenState extends State<SampleDetailScreen> {
             foregroundColor: Colors.white,
             title: const Text(
               "Chi tiết Mẫu",
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.normal),
             ),
           ),
           body: SingleChildScrollView(

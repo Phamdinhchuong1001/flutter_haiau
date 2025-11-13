@@ -211,7 +211,7 @@ class _SampleScreenState extends State<SampleScreen> {
             backgroundColor: const Color(0xFF005BFF),
             centerTitle: true,
             title: const Text(
-              'Quản lý Mẫu',
+              'Quản lý mẫu',
               style: TextStyle(color: Colors.white),
             ),
             iconTheme: const IconThemeData(color: Colors.white),

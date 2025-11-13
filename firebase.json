@@ -37,6 +37,7 @@
     {
       "source": "functions",
       "codebase": "lab_samples",
+      "runtime": "nodejs20",
       "ignore": [
         "node_modules",
         ".git",
