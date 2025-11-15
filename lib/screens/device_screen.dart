@@ -65,20 +65,30 @@ class _DeviceScreenState extends State<DeviceScreen> {
     setState(() => isLoading = true);
 
     try {
+      debugPrint("====== 📤 FETCH DEVICES REQUEST ======");
+      debugPrint("pageSize: $pageSize");
+      debugPrint("lastCreatedAt: null");
+      debugPrint("======================================");
+
       final callable = functions.httpsCallable('getDevices');
       final result = await callable.call({
         'pageSize': pageSize,
         'lastCreatedAt': null,
       });
 
-      final List<dynamic> data = result.data['devices'];
+      debugPrint("====== ✅ FETCH DEVICES RESPONSE ======");
+      debugPrint(result.data.toString());
+      debugPrint("=======================================");
 
+      final List<dynamic> data = result.data['devices'];
       devices = data.map((e) => DeviceModel.fromMap(e, e['id'])).toList();
 
       lastCreatedAt = result.data['lastCreatedAt'];
       hasMore = data.length == pageSize;
     } catch (e) {
-      debugPrint("Error fetching devices: $e");
+      debugPrint("====== 🔥 FETCH DEVICES ERROR ======");
+      debugPrint(e.toString());
+      debugPrint("====================================");
     }
 
     setState(() => isLoading = false);
@@ -90,14 +100,22 @@ class _DeviceScreenState extends State<DeviceScreen> {
     setState(() => isLoadingMore = true);
 
     try {
+      debugPrint("====== 📤 FETCH MORE DEVICES REQUEST ======");
+      debugPrint("pageSize: $pageSize");
+      debugPrint("lastCreatedAt: $lastCreatedAt");
+      debugPrint("==========================================");
+
       final callable = functions.httpsCallable('getDevices');
       final result = await callable.call({
         'pageSize': pageSize,
         'lastCreatedAt': lastCreatedAt,
       });
 
-      final List<dynamic> data = result.data['devices'];
+      debugPrint("====== ✅ FETCH MORE DEVICES RESPONSE ======");
+      debugPrint(result.data.toString());
+      debugPrint("============================================");
 
+      final List<dynamic> data = result.data['devices'];
       final newDevices = data
           .map((e) => DeviceModel.fromMap(e, e['id']))
           .toList();
@@ -109,7 +127,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
         lastCreatedAt = result.data['lastCreatedAt'];
       }
     } catch (e) {
-      debugPrint("Load more error: $e");
+      debugPrint("====== 🔥 FETCH MORE DEVICES ERROR ======");
+      debugPrint(e.toString());
+      debugPrint("==========================================");
     }
 
     setState(() => isLoadingMore = false);
@@ -484,27 +504,33 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
       "nextSequence": _nextSequence,
     };
 
+    debugPrint("====== 📤 ADD DEVICE REQUEST ======");
+    debugPrint(data.toString());
+    debugPrint("===================================");
+
     try {
       final callable = functions.httpsCallable("addDevice");
-      await callable.call(data);
+      final result = await callable.call(data);
+
+      debugPrint("====== ✅ ADD DEVICE RESPONSE ======");
+      debugPrint(result.data.toString());
+      debugPrint("====================================");
 
       if (mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Đã thêm thiết bị $_autoDeviceCode"),
-            backgroundColor: Colors.green,
-          ),
+          SnackBar(content: Text("Đã thêm thiết bị $_autoDeviceCode")),
         );
       }
     } catch (e) {
+      debugPrint("====== 🔥 ADD DEVICE ERROR ======");
+      debugPrint(e.toString());
+      debugPrint("=================================");
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Lỗi thêm thiết bị: $e"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Lỗi thêm thiết bị: $e")));
       }
     } finally {
       setState(() => _isSubmitting = false);

@@ -69,11 +69,14 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         'status': statusToString(_selectedStatus),
       };
 
+      print('[API] Gọi updateDeviceStatus → $data');
+
       final HttpsCallable callable = functions.httpsCallable(
         'updateDeviceStatus',
       );
+      final result = await callable.call(data);
 
-      await callable.call(data);
+      print('[API] Kết quả updateDeviceStatus → ${result.data}');
 
       if (mounted) {
         setState(() {
@@ -92,13 +95,15 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         Navigator.pop(context, true);
       }
     } on FirebaseFunctionsException catch (e) {
+      print('[API ERROR] updateDeviceStatus → ${e.code} | ${e.message}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Lỗi cập nhật trạng thái: ${e.message}'),
           backgroundColor: Colors.red,
         ),
       );
-    } catch (_) {
+    } catch (e) {
+      print('[API ERROR] updateDeviceStatus → $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Lỗi kết nối hoặc server.'),
@@ -141,9 +146,13 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
     try {
       final data = {'id': _currentDevice.id};
-      final HttpsCallable callable = functions.httpsCallable('deleteDevice');
 
-      await callable.call(data);
+      print('[API] Gọi deleteDevice → $data');
+
+      final HttpsCallable callable = functions.httpsCallable('deleteDevice');
+      final result = await callable.call(data);
+
+      print('[API] Kết quả deleteDevice → ${result.data}');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -155,6 +164,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
+      print('[API ERROR] deleteDevice → $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Lỗi xóa thiết bị: ${e.toString()}'),
