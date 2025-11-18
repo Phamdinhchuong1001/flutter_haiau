@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import 'package:flutter_haiau/models/device_model.dart';
 import 'package:flutter_haiau/services/auth_service.dart';
 import 'package:flutter_haiau/models/user_model.dart';
@@ -168,14 +167,14 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     }
   }
 
-  Widget _buildInfoCard(String title, String value) {
+  Widget _buildInfoField(String label, String value, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
+            label,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -184,16 +183,23 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
           ),
           const SizedBox(height: 4),
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey.shade300),
             ),
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 16, color: Colors.black87),
+            child: Row(
+              children: [
+                Icon(icon, color: const Color(0xFF2196F3)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    value,
+                    style: const TextStyle(fontSize: 16, color: Colors.black87),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -210,168 +216,216 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         final bool isAdmin = (userRole == 'admin');
 
         return Scaffold(
-          backgroundColor: Colors.white,
           appBar: AppBar(
             centerTitle: true,
-            elevation: 0,
+            title: const Text('Chi tiết thiết bị'),
             backgroundColor: primaryColor,
             foregroundColor: Colors.white,
-            title: const Text(
-              "Chi tiết thiết bị",
-              style: TextStyle(fontWeight: FontWeight.normal),
-            ),
           ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
+          backgroundColor: const Color(0xFFF5F6FA),
+
+          /// LAYOUT chính
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 800;
+
+              return Center(
+                child: Container(
+                  width: isWide ? 700 : double.infinity,
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: primaryColor.withOpacity(0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.devices_other,
-                        size: 40,
-                        color: Color(0xFF2196F3),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _currentDevice.deviceCode,
-                              style: Theme.of(context).textTheme.titleLarge!
-                                  .copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
-                                    color: Colors.black87,
-                                  ),
-                            ),
-                            Text(
-                              statusToString(_currentDevice.status),
-                              style: TextStyle(
-                                color: _getStatusColor(_currentDevice.status),
-                                fontWeight: FontWeight.w600,
+                    ],
+                  ),
+
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 8),
+                        const CircleAvatar(
+                          radius: 45,
+                          backgroundColor: Color(0xFFE3F2FD),
+                          child: Icon(
+                            Icons.devices_other,
+                            size: 50,
+                            color: Color(0xFF2196F3),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        Text(
+                          _currentDevice.name,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        Text(
+                          _currentDevice.deviceCode,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+
+                        const Divider(height: 32),
+
+                        _buildInfoField(
+                          "Tên thiết bị",
+                          _currentDevice.name,
+                          Icons.label,
+                        ),
+                        _buildInfoField(
+                          "Model / Serial",
+                          _currentDevice.model,
+                          Icons.qr_code_2,
+                        ),
+                        _buildInfoField(
+                          "Hãng sản xuất",
+                          _currentDevice.manufacturer,
+                          Icons.factory,
+                        ),
+                        _buildInfoField(
+                          "Ngày mua",
+                          _currentDevice.purchaseDate.toDate().toString(),
+                          Icons.calendar_month,
+                        ),
+                        _buildInfoField(
+                          "Chu kỳ hiệu chuẩn (tháng)",
+                          _currentDevice.calibrationCycle,
+                          Icons.timer,
+                        ),
+                        _buildInfoField(
+                          "Thời gian tạo",
+                          _currentDevice.createdAt.toDate().toString(),
+                          Icons.access_time,
+                        ),
+
+                        const SizedBox(height: 20),
+                        const Divider(height: 20),
+
+                        if (isAdmin) ...[
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              "Cập nhật trạng thái",
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                          ),
+                          const SizedBox(height: 10),
 
-                const SizedBox(height: 20),
-
-                _buildInfoCard("Tên thiết bị", _currentDevice.name),
-                _buildInfoCard("Model / Serial", _currentDevice.model),
-                _buildInfoCard("Hãng sản xuất", _currentDevice.manufacturer),
-                _buildInfoCard(
-                  "Ngày mua",
-                  _currentDevice.purchaseDate.toDate().toString(),
-                ),
-
-                _buildInfoCard(
-                  "Chu kỳ hiệu chuẩn (tháng)",
-                  _currentDevice.calibrationCycle,
-                ),
-                _buildInfoCard(
-                  "Thời gian tạo",
-                  _currentDevice.createdAt.toDate().toString(),
-                ),
-
-                const Divider(height: 30),
-
-                if (isAdmin) ...[
-                  Text(
-                    "Cập nhật Trạng thái",
-                    style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  DropdownButtonFormField<DeviceStatus>(
-                    value: _selectedStatus,
-                    decoration: InputDecoration(
-                      prefixIcon: Icon(
-                        Icons.cached,
-                        color: _getStatusColor(_selectedStatus),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    items: statusOptions.map((status) {
-                      return DropdownMenuItem(
-                        value: status,
-                        child: Text(statusToString(status)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() => _selectedStatus = value!);
-                    },
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(double.infinity, 48),
-                            shape: RoundedRectangleBorder(
+                          /// DROPDOWN
+                          Container(
+                            height: 55,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
                               borderRadius: BorderRadius.circular(12),
                             ),
-                          ),
-                          icon: _isLoading
-                              ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.cached,
+                                  color: _getStatusColor(_selectedStatus),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<DeviceStatus>(
+                                      value: _selectedStatus,
+                                      isExpanded: true,
+                                      items: statusOptions.map((s) {
+                                        return DropdownMenuItem(
+                                          value: s,
+                                          child: Text(statusToString(s)),
+                                        );
+                                      }).toList(),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _selectedStatus = value!;
+                                        });
+                                      },
+                                    ),
                                   ),
-                                )
-                              : const Icon(Icons.save),
-                          label: const Text("Cập nhật trạng thái"),
-                          onPressed: _isLoading ? null : _updateDeviceStatus,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(double.infinity, 48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                                ),
+                              ],
                             ),
                           ),
-                          icon: const Icon(Icons.delete),
-                          label: const Text("Xóa thiết bị"),
-                          onPressed: _isLoading ? null : _confirmDeleteDevice,
-                        ),
-                      ),
-                    ],
+
+                          const SizedBox(height: 24),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _isLoading
+                                      ? null
+                                      : _updateDeviceStatus,
+                                  icon: _isLoading
+                                      ? const SizedBox(
+                                          height: 22,
+                                          width: 22,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2.5,
+                                          ),
+                                        )
+                                      : const Icon(Icons.save),
+                                  label: const Text('Cập nhật trạng thái'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primaryColor,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _isLoading
+                                      ? null
+                                      : _confirmDeleteDevice,
+                                  icon: const Icon(Icons.delete),
+                                  label: const Text('Xóa thiết bị'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ],
-              ],
-            ),
+                ),
+              );
+            },
           ),
         );
       },
