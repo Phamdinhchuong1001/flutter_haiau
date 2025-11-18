@@ -81,6 +81,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
       debugPrint("=======================================");
 
       final List<dynamic> data = result.data['devices'];
+
       devices = data.map((e) => DeviceModel.fromMap(e, e['id'])).toList();
 
       lastCreatedAt = result.data['lastCreatedAt'];
@@ -91,6 +92,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
       debugPrint("====================================");
     }
 
+    await Future.delayed(const Duration(milliseconds: 400));
     setState(() => isLoading = false);
   }
 
@@ -116,6 +118,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
       debugPrint("============================================");
 
       final List<dynamic> data = result.data['devices'];
+
       final newDevices = data
           .map((e) => DeviceModel.fromMap(e, e['id']))
           .toList();
@@ -131,7 +134,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
       debugPrint(e.toString());
       debugPrint("==========================================");
     }
-
+    await Future.delayed(const Duration(milliseconds: 300));
     setState(() => isLoadingMore = false);
   }
 
