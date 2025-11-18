@@ -1,12 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Trạng thái thiết bị
-enum DeviceStatus {
-  active,
-  broken,
-  calibrating,
-  outOfService,
-}
+enum DeviceStatus { active, broken, calibrating, outOfService }
 
 // Convert ENUM -> String
 String statusToString(DeviceStatus status) {
@@ -45,27 +40,23 @@ class DeviceModel {
   final String name;
   final String model;
   final String manufacturer;
-
-  // 🔥 CHỈNH SỬA: purchaseDate phải là Timestamp
   final Timestamp purchaseDate;
-
-  // 🔥 calibrationCycle lưu dạng String vẫn OK
   final String calibrationCycle;
 
   final DeviceStatus status;
   final Timestamp createdAt;
 
   DeviceModel({
-  required this.id,
-  required this.deviceCode,
-  required this.name,
-  required this.model,
-  required this.manufacturer,
-  required this.purchaseDate,      
-  required this.calibrationCycle,
-  required this.status,
-  required this.createdAt,
-});
+    required this.id,
+    required this.deviceCode,
+    required this.name,
+    required this.model,
+    required this.manufacturer,
+    required this.purchaseDate,
+    required this.calibrationCycle,
+    required this.status,
+    required this.createdAt,
+  });
 
   // Convert API / Firestore data -> Model
   factory DeviceModel.fromMap(Map<String, dynamic> data, String id) {
@@ -75,19 +66,13 @@ class DeviceModel {
       name: data['name'] ?? '',
       model: data['model'] ?? '',
       manufacturer: data['manufacturer'] ?? '',
-
-      // 🔥 FIX CHÍNH: parse purchaseDate (timestamp)
-      purchaseDate: data['purchaseDate'] is Timestamp
-        ? data['purchaseDate']
-        : Timestamp.now(),
+      purchaseDate: Timestamp.fromMillisecondsSinceEpoch(data['purchaseDate']),
 
       calibrationCycle: data['calibrationCycle'] ?? '',
 
       status: statusFromString(data['status'] ?? "Đang hoạt động"),
 
-      createdAt: data['createdAt'] is Timestamp
-          ? data['createdAt']
-          : Timestamp.now(),
+      createdAt: Timestamp.fromMillisecondsSinceEpoch(data['createdAt']),
     );
   }
 

@@ -1,161 +1,161 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
-admin.initializeApp(); 
+admin.initializeApp();
 const db = admin.firestore();
-const SAMPLES_COLLECTION = 'samples'; 
-const COUNTER_DOC = 'counters/sample'; 
+const SAMPLES_COLLECTION = 'samples';
+const COUNTER_DOC = 'counters/sample';
 
 const checkRole = (context, requiredRole) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
-    }
-    
-    const userRole = context.auth.token.role || 'nhanvien'; 
-    
-    if (userRole !== requiredRole) {
-        throw new functions.https.HttpsError(
-            'permission-denied', 
-            `Bạn không có quyền '${requiredRole}' để thực hiện thao tác này.`
-        );
-    }
-    return userRole;
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+  }
+
+  const userRole = context.auth.token.role || 'nhanvien';
+
+  if (userRole !== requiredRole) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      `Bạn không có quyền '${requiredRole}' để thực hiện thao tác này.`
+    );
+  }
+  return userRole;
 };
 
 exports.getNewSampleCode = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+  }
+
+  try {
+    const counterRef = db.doc(COUNTER_DOC);
+    const counterDoc = await counterRef.get();
+
+    if (!counterDoc.exists) {
+      throw new functions.https.HttpsError('failed-precondition', 'Lỗi cấu hình: Tài liệu Counter không tồn tại. Vui lòng tạo counters/sample.');
     }
 
-    try {
-        const counterRef = db.doc(COUNTER_DOC);
-        const counterDoc = await counterRef.get();
+    const currentSequence = counterDoc.data().sequence || 0;
+    const nextSequence = currentSequence + 1;
 
-        if (!counterDoc.exists) {
-            throw new functions.https.HttpsError('failed-precondition', 'Lỗi cấu hình: Tài liệu Counter không tồn tại. Vui lòng tạo counters/sample.');
-        }
+    const year = new Date().getFullYear();
+    const paddedSequence = String(nextSequence).padStart(5, '0');
+    const newSampleCode = `HA-${year}-${paddedSequence}`;
 
-        const currentSequence = counterDoc.data().sequence || 0;
-        const nextSequence = currentSequence + 1;
-        
-        const year = new Date().getFullYear();
-        const paddedSequence = String(nextSequence).padStart(5, '0');
-        const newSampleCode = `HA-${year}-${paddedSequence}`;
-        
-        return { sampleCode: newSampleCode, nextSequence: nextSequence };
+    return { sampleCode: newSampleCode, nextSequence: nextSequence };
 
-    } catch (error) {
-        console.error("Lỗi khi tạo Mã mẫu:", error);
-        if (error.code === 'failed-precondition') {
-             throw error;
-        }
-        throw new functions.https.HttpsError('internal', `Lỗi server khi tạo mã: ${error.message}`);
+  } catch (error) {
+    console.error("Lỗi khi tạo Mã mẫu:", error);
+    if (error.code === 'failed-precondition') {
+      throw error;
     }
+    throw new functions.https.HttpsError('internal', `Lỗi server khi tạo mã: ${error.message}`);
+  }
 });
 
 exports.addSample = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
-    }
-    
-    const { sampleCode, customerName, sampleType, receivedDate, status, nextSequence } = data; 
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+  }
 
-    if (!sampleCode) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Mã mẫu.'); 
-    if (!customerName) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Tên khách hàng.');
-    if (!sampleType) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Loại mẫu.');
-    if (!receivedDate) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Ngày nhận.');
-    if (!status) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Trạng thái.');
-    if (!nextSequence || typeof nextSequence !== 'number') throw new functions.https.HttpsError('internal', 'Lỗi dữ liệu: Thiếu số thứ tự (nextSequence) để cập nhật counter.');
+  const { sampleCode, customerName, sampleType, receivedDate, status, nextSequence } = data;
+
+  if (!sampleCode) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Mã mẫu.');
+  if (!customerName) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Tên khách hàng.');
+  if (!sampleType) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Loại mẫu.');
+  if (!receivedDate) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Ngày nhận.');
+  if (!status) throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin bắt buộc: Trạng thái.');
+  if (!nextSequence || typeof nextSequence !== 'number') throw new functions.https.HttpsError('internal', 'Lỗi dữ liệu: Thiếu số thứ tự (nextSequence) để cập nhật counter.');
 
 
-    try {
-        await db.runTransaction(async (transaction) => {
-            const counterRef = db.doc(COUNTER_DOC);
-            
-            transaction.update(counterRef, { sequence: nextSequence }); // <--- CẬP NHẬT COUNTER
-            
-            const newSample = {
-                sampleCode: sampleCode.trim(),
-                customerName: customerName.trim(),
-                sampleType: sampleType.trim(),
-                receivedDate: receivedDate.trim(),
-                status: status.trim(), 
-                createdAt: admin.firestore.Timestamp.now(),
-                updatedAt: admin.firestore.Timestamp.now(),
-                createdBy: context.auth.uid, 
-            };
+  try {
+    await db.runTransaction(async (transaction) => {
+      const counterRef = db.doc(COUNTER_DOC);
 
-            const docRef = db.collection(SAMPLES_COLLECTION).doc();
-            transaction.set(docRef, newSample);
-        });
+      transaction.update(counterRef, { sequence: nextSequence }); // <--- CẬP NHẬT COUNTER
 
-        return { success: true, message: 'Thêm mẫu thành công!', sampleCode: sampleCode };
-        
-    } catch (error) {
-        console.error("Lỗi khi thêm mẫu:", error);
-        throw new functions.https.HttpsError('internal', `Lỗi server khi tạo mẫu: ${error.message}`);
-    }
+      const newSample = {
+        sampleCode: sampleCode.trim(),
+        customerName: customerName.trim(),
+        sampleType: sampleType.trim(),
+        receivedDate: receivedDate.trim(),
+        status: status.trim(),
+        createdAt: admin.firestore.Timestamp.now(),
+        updatedAt: admin.firestore.Timestamp.now(),
+        createdBy: context.auth.uid,
+      };
+
+      const docRef = db.collection(SAMPLES_COLLECTION).doc();
+      transaction.set(docRef, newSample);
+    });
+
+    return { success: true, message: 'Thêm mẫu thành công!', sampleCode: sampleCode };
+
+  } catch (error) {
+    console.error("Lỗi khi thêm mẫu:", error);
+    throw new functions.https.HttpsError('internal', `Lỗi server khi tạo mẫu: ${error.message}`);
+  }
 });
 
 exports.updateSampleStatus = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
-    }
-    
-    const { id, status } = data;
-    if (!id || !status) {
-        throw new functions.https.HttpsError('invalid-argument', 'Thiếu ID mẫu hoặc trạng thái mới.');
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+  }
+
+  const { id, status } = data;
+  if (!id || !status) {
+    throw new functions.https.HttpsError('invalid-argument', 'Thiếu ID mẫu hoặc trạng thái mới.');
+  }
+
+  try {
+    const sampleRef = db.collection(SAMPLES_COLLECTION).doc(id);
+
+    const doc = await sampleRef.get();
+    if (!doc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Tài liệu mẫu cần cập nhật không tồn tại.');
     }
 
-    try {
-        const sampleRef = db.collection(SAMPLES_COLLECTION).doc(id);
-        
-        const doc = await sampleRef.get();
-        if (!doc.exists) {
-            throw new functions.https.HttpsError('not-found', 'Tài liệu mẫu cần cập nhật không tồn tại.');
-        }
+    await sampleRef.update({
+      status: status.trim(),
+      updatedAt: admin.firestore.Timestamp.now(),
+    });
 
-        await sampleRef.update({
-            status: status.trim(),
-            updatedAt: admin.firestore.Timestamp.now(),
-        });
-
-        return { success: true, message: `Cập nhật trạng thái thành công!` };
-    } catch (error) {
-        console.error("Lỗi khi cập nhật trạng thái mẫu:", error);
-        if (error.code === 'not-found') {
-             throw error; 
-        }
-        throw new functions.https.HttpsError('internal', `Lỗi server khi cập nhật: ${error.message}`);
+    return { success: true, message: `Cập nhật trạng thái thành công!` };
+  } catch (error) {
+    console.error("Lỗi khi cập nhật trạng thái mẫu:", error);
+    if (error.code === 'not-found') {
+      throw error;
     }
+    throw new functions.https.HttpsError('internal', `Lỗi server khi cập nhật: ${error.message}`);
+  }
 });
 
 exports.deleteSample = functions.https.onCall(async (data, context) => {
-    checkRole(context, 'admin'); 
+  checkRole(context, 'admin');
 
-    const { id } = data;
-    if (!id) {
-        throw new functions.https.HttpsError('invalid-argument', 'Thiếu ID mẫu cần xóa.');
+  const { id } = data;
+  if (!id) {
+    throw new functions.https.HttpsError('invalid-argument', 'Thiếu ID mẫu cần xóa.');
+  }
+
+  try {
+    const sampleRef = db.collection(SAMPLES_COLLECTION).doc(id);
+
+    const doc = await sampleRef.get();
+    if (!doc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Tài liệu mẫu cần xóa không tồn tại.');
     }
 
-    try {
-        const sampleRef = db.collection(SAMPLES_COLLECTION).doc(id);
-        
-        const doc = await sampleRef.get();
-        if (!doc.exists) {
-            throw new functions.https.HttpsError('not-found', 'Tài liệu mẫu cần xóa không tồn tại.');
-        }
+    await sampleRef.delete();
 
-        await sampleRef.delete();
-
-        return { success: true, message: `Xóa mẫu ${id} thành công!` };
-    } catch (error) {
-        console.error("Lỗi khi xóa mẫu:", error);
-        if (error.code === 'not-found' || error.code === 'permission-denied') {
-             throw error; 
-        }
-        throw new functions.https.HttpsError('internal', `Lỗi server khi xóa: ${error.message}`);
+    return { success: true, message: `Xóa mẫu ${id} thành công!` };
+  } catch (error) {
+    console.error("Lỗi khi xóa mẫu:", error);
+    if (error.code === 'not-found' || error.code === 'permission-denied') {
+      throw error;
     }
+    throw new functions.https.HttpsError('internal', `Lỗi server khi xóa: ${error.message}`);
+  }
 });
 // ======================================================
 // =================== USER MANAGEMENT ===================
@@ -220,7 +220,7 @@ exports.reinitAdmin = functions.https.onRequest(async (req, res) => {
 // ✅ 1. ĐĂNG KÝ USER (chỉ được tạo tài khoản nhân viên)
 exports.registerUser = functions.https.onCall(async (data, context) => {
   const { fullname, email, password } = data;
-  if (!fullname || !email || !password ) {
+  if (!fullname || !email || !password) {
     throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin đăng ký.');
   }
 
@@ -360,19 +360,30 @@ exports.getDevices = functions
         .limit(pageSize);
 
       if (lastCreatedAt) {
-        query = query.startAfter(lastCreatedAt);
+        query = query.startAfter(admin.firestore.Timestamp.fromMillis(lastCreatedAt));
       }
 
       const snapshot = await query.get();
 
-      const devices = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const devices = snapshot.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          deviceCode: d.deviceCode,
+          name: d.name,
+          model: d.model,
+          manufacturer: d.manufacturer,
+          purchaseDate: d.purchaseDate ? d.purchaseDate.toMillis() : null,
+          calibrationCycle: d.calibrationCycle,
+          status: d.status,
+          createdAt: d.createdAt ? d.createdAt.toMillis() : null,
+          updatedAt: d.updatedAt ? d.updatedAt.toMillis() : null,
+        };
+      });
 
       const newLast =
         snapshot.docs.length > 0
-          ? snapshot.docs[snapshot.docs.length - 1].data().createdAt
+          ? snapshot.docs[snapshot.docs.length - 1].data().createdAt.toMillis()
           : null;
 
       return { devices, lastCreatedAt: newLast };
@@ -381,6 +392,7 @@ exports.getDevices = functions
       throw new functions.https.HttpsError('internal', error.message);
     }
   });
+
 
 // 2️⃣ Tạo mã thiết bị mới
 exports.getNewDeviceCode = functions
@@ -417,17 +429,17 @@ exports.addDevice = functions
   .region('asia-southeast1')
   .https.onCall(async (data, context) => {
     if (!context.auth)
-        throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
+      throw new functions.https.HttpsError('unauthenticated', 'Yêu cầu đăng nhập.');
 
     const {
-        deviceCode,
-        name,
-        model,
-        manufacturer,
-        status,
-        purchaseDate,
-        calibrationCycle,
-        nextSequence
+      deviceCode,
+      name,
+      model,
+      manufacturer,
+      status,
+      purchaseDate,
+      calibrationCycle,
+      nextSequence
     } = data;
 
     if (!deviceCode) throw new functions.https.HttpsError('invalid-argument', 'Thiếu mã thiết bị');
@@ -438,45 +450,45 @@ exports.addDevice = functions
     if (!calibrationCycle) throw new functions.https.HttpsError('invalid-argument', 'Thiếu chu kỳ hiệu chuẩn');
 
     if (!nextSequence || typeof nextSequence !== 'number')
-        throw new functions.https.HttpsError('invalid-argument', 'Thiếu nextSequence hợp lệ');
+      throw new functions.https.HttpsError('invalid-argument', 'Thiếu nextSequence hợp lệ');
 
     let parsedPurchaseDate = null;
     try {
-        const [d, m, y] = purchaseDate.split("/");
-        parsedPurchaseDate = admin.firestore.Timestamp.fromDate(new Date(`${y}-${m}-${d}`));
+      const [d, m, y] = purchaseDate.split("/");
+      parsedPurchaseDate = admin.firestore.Timestamp.fromDate(new Date(`${y}-${m}-${d}`));
     } catch (e) {
-        throw new functions.https.HttpsError('invalid-argument', 'Ngày mua không đúng định dạng dd/MM/yyyy');
+      throw new functions.https.HttpsError('invalid-argument', 'Ngày mua không đúng định dạng dd/MM/yyyy');
     }
 
     try {
-        await db.runTransaction(async (transaction) => {
-            const counterRef = db.doc("counters/device");
-            transaction.update(counterRef, { sequence: nextSequence });
+      await db.runTransaction(async (transaction) => {
+        const counterRef = db.doc("counters/device");
+        transaction.update(counterRef, { sequence: nextSequence });
 
-            const deviceData = {
-                deviceCode,
-                name,
-                model,
-                manufacturer,
-                status,
-                calibrationCycle,
-                purchaseDate: parsedPurchaseDate,
-                createdAt: admin.firestore.Timestamp.now(),
-                updatedAt: admin.firestore.Timestamp.now(),
-                createdBy: context.auth.uid
-            };
+        const deviceData = {
+          deviceCode,
+          name,
+          model,
+          manufacturer,
+          status,
+          calibrationCycle,
+          purchaseDate: parsedPurchaseDate,
+          createdAt: admin.firestore.Timestamp.now(),
+          updatedAt: admin.firestore.Timestamp.now(),
+          createdBy: context.auth.uid
+        };
 
-            const newDoc = db.collection("devices").doc();
-            transaction.set(newDoc, deviceData);
-        });
+        const newDoc = db.collection("devices").doc();
+        transaction.set(newDoc, deviceData);
+      });
 
-        return { success: true };
+      return { success: true };
     }
     catch (error) {
-        console.error("Add Device Error:", error);
-        throw new functions.https.HttpsError('internal', error.message);
+      console.error("Add Device Error:", error);
+      throw new functions.https.HttpsError('internal', error.message);
     }
-});
+  });
 
 
 

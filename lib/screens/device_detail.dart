@@ -6,7 +6,9 @@ import 'package:flutter_haiau/models/device_model.dart';
 import 'package:flutter_haiau/services/auth_service.dart';
 import 'package:flutter_haiau/models/user_model.dart';
 
-final FirebaseFunctions functions = FirebaseFunctions.instance;
+final FirebaseFunctions functions = FirebaseFunctions.instanceFor(
+  region: 'asia-southeast1',
+);
 
 class DeviceDetailScreen extends StatefulWidget {
   final DeviceModel device;
@@ -71,10 +73,9 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
       print('[API] Gọi updateDeviceStatus → $data');
 
-      final HttpsCallable callable = functions.httpsCallable(
-        'updateDeviceStatus',
-      );
-      final result = await callable.call(data);
+      final result = await functions
+          .httpsCallable('updateDeviceStatus')
+          .call(data);
 
       print('[API] Kết quả updateDeviceStatus → ${result.data}');
 
@@ -94,19 +95,11 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
         Navigator.pop(context, true);
       }
-    } on FirebaseFunctionsException catch (e) {
-      print('[API ERROR] updateDeviceStatus → ${e.code} | ${e.message}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi cập nhật trạng thái: ${e.message}'),
-          backgroundColor: Colors.red,
-        ),
-      );
     } catch (e) {
       print('[API ERROR] updateDeviceStatus → $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lỗi kết nối hoặc server.'),
+        SnackBar(
+          content: Text('Lỗi cập nhật trạng thái: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -149,8 +142,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
       print('[API] Gọi deleteDevice → $data');
 
-      final HttpsCallable callable = functions.httpsCallable('deleteDevice');
-      final result = await callable.call(data);
+      final result = await functions.httpsCallable('deleteDevice').call(data);
 
       print('[API] Kết quả deleteDevice → ${result.data}');
 
@@ -167,7 +159,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       print('[API ERROR] deleteDevice → $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Lỗi xóa thiết bị: ${e.toString()}'),
+          content: Text('Lỗi xóa thiết bị: $e'),
           backgroundColor: Colors.red,
         ),
       );
