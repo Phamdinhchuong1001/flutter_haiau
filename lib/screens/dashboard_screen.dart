@@ -3,6 +3,7 @@ import 'package:flutter_haiau/services/auth_service.dart';
 import 'package:flutter_haiau/screens/user_management_screen.dart';
 import 'package:flutter_haiau/screens/device_screen.dart';
 import 'package:flutter_haiau/screens/sample_screen.dart';
+import 'package:flutter_haiau/screens/report_menu_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 
@@ -22,7 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     const SampleScreen(),
     const DeviceScreen(),
     const UserManagementScreen(),
-    Center(child: Text('Trang Báo Cáo')),
+    const ReportMenuScreen(),
   ];
 
   void _onSelectPage(int index, {bool closeDrawer = false}) {
@@ -50,7 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           page = const UserManagementScreen();
           break;
         case 4:
-          page = Center(child: Text('Trang Báo Cáo'));
+          page = const ReportMenuScreen();
           break;
         default:
           page = null;
@@ -271,7 +272,10 @@ class DashboardContent extends StatelessWidget {
                 icon: Icons.assignment,
                 label: 'Báo cáo',
                 onTap: () {
-                  // TODO: thêm màn hình báo cáo khi có
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReportMenuScreen()),
+                  );
                 },
               ),
             ],

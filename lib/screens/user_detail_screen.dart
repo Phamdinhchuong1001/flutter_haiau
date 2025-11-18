@@ -120,7 +120,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Xóa'),
+            child: const Text('Xóa', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
