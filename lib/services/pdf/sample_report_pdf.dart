@@ -10,7 +10,7 @@ class SampleReportPDF {
   static Future<Uint8List> generate(List<Map<String, dynamic>> samples) async {
     // Load font từ assets (đã khai báo trong pubspec.yaml)
     final fontData = await rootBundle.load(
-      'lib/fonts/KFOmCnqEu92Fr1Mu4mxP.ttf',
+      'lib/fonts/Roboto-Italic-VariableFont_wdth,wght.ttf',
     );
     final ttf = pw.Font.ttf(fontData);
 
